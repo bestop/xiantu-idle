@@ -22,6 +22,8 @@ interface BattleState {
   log: BattleLogLine[];
   phase: 'fighting' | 'won' | 'lost';
   rewards: BattleRewards | null;
+  playerHitEpoch: number;
+  monsterHitEpoch: number;
 }
 
 let logId = 0;
@@ -88,7 +90,9 @@ export function CombatPanel() {
     b.round += 1;
 
     const r = simulateRound(ps, b.playerHp, monster, b.monsterHp);
+    const prevMonsterHp = b.monsterHp;
     b.monsterHp = r.monsterHpAfter;
+    if (r.monsterHpAfter < prevMonsterHp) b.monsterHitEpoch += 1;
 
     let text = `第${b.round}回合：你挥出${r.playerDmg}点伤害${r.playerCrit ? '（暴击！）' : ''}`;
     b.log.push({ id: ++logId, type: r.playerCrit ? 'crit' : 'player', text });
@@ -103,7 +107,9 @@ export function CombatPanel() {
     if (r.playerDodge) {
       b.log.push({ id: ++logId, type: 'dodge', text: `💨 你身形一闪，避开了 ${monster.name} 的攻击！` });
     } else {
+      const prevPlayerHp = b.playerHp;
       b.playerHp = r.playerHpAfter;
+      if (r.playerHpAfter < prevPlayerHp) b.playerHitEpoch += 1;
       text = `${monster.name} 反击造成 ${r.monsterDmg} 点伤害${r.monsterCrit ? '（暴击！）' : ''}`;
       b.log.push({ id: ++logId, type: 'monster', text });
       if (r.playerHpAfter <= 0) {
@@ -130,6 +136,8 @@ export function CombatPanel() {
       log: [{ id: ++logId, type: 'info', text: `你与 ${monster.name}（${monster.tier} 阶${monster.isBoss ? '·妖王' : ''}）对峙！` }],
       phase: 'fighting',
       rewards: null,
+      playerHitEpoch: 0,
+      monsterHitEpoch: 0,
     };
     sync();
     timerRef.current = setInterval(stepRound, 750);
@@ -149,14 +157,18 @@ export function CombatPanel() {
       const ps = statsRef.current;
       b.round += 1;
       const r = simulateRound(ps, b.playerHp, monster, b.monsterHp);
+      const prevMonsterHp = b.monsterHp;
       b.monsterHp = r.monsterHpAfter;
+      if (r.monsterHpAfter < prevMonsterHp) b.monsterHitEpoch += 1;
       if (r.monsterHpAfter <= 0) {
         b.log.push({ id: ++logId, type: 'win', text: `⚔️ 你击败了 ${monster.name}！（${b.round} 回合）` });
         finishBattle(true);
         break;
       }
       if (r.playerDodge) continue;
+      const prevPlayerHp = b.playerHp;
       b.playerHp = r.playerHpAfter;
+      if (r.playerHpAfter < prevPlayerHp) b.playerHitEpoch += 1;
       if (r.playerHpAfter <= 0) {
         b.log.push({ id: ++logId, type: 'lose', text: `💀 你不敌 ${monster.name}，仓皇逃遁...（第 ${b.round} 回合）` });
         finishBattle(false);
@@ -209,15 +221,19 @@ export function CombatPanel() {
         </button>
 
         {/* 对阵卡 */}
-        <div className="bg-stone-900/80 border border-stone-800 rounded-xl p-4 space-y-4">
+        <div className="bg-gradient-to-b from-stone-900/90 to-stone-900/70 border border-stone-800 rounded-xl p-4 space-y-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
           <CombatantCard
             icon="🧙" name={battle.player.name} hp={battle.playerHp} maxHp={battle.player.maxHp}
-            atk={battle.player.atk} def={battle.player.def} accent="amber"
+            atk={battle.player.atk} def={battle.player.def} accent="amber" hitEpoch={battle.playerHitEpoch}
           />
-          <div className="text-center text-[10px] text-stone-500 tracking-widest">VS</div>
+          <div className="flex items-center gap-2" aria-hidden>
+            <span className="flex-1 h-px bg-stone-800" />
+            <span className="text-[10px] text-stone-500 tracking-[0.3em] tabular-nums">第 {battle.round} 回合</span>
+            <span className="flex-1 h-px bg-stone-800" />
+          </div>
           <CombatantCard
             icon={monster.icon} name={`${monster.name}·${monster.tier}阶`} hp={battle.monsterHp} maxHp={monster.hp}
-            atk={monster.atk} def={monster.def} accent={monster.isBoss ? 'rose' : 'stone'}
+            atk={monster.atk} def={monster.def} accent={monster.isBoss ? 'rose' : 'stone'} hitEpoch={battle.monsterHitEpoch}
           />
         </div>
 
@@ -225,7 +241,7 @@ export function CombatPanel() {
         <Section className="!p-0 overflow-hidden">
           <div className="max-h-56 overflow-y-auto p-3 space-y-1 scroll-smooth" aria-live="polite">
             {battle.log.slice(-14).map(l => (
-              <div key={l.id} className={cn('text-xs leading-relaxed',
+              <div key={l.id} className={cn('text-xs leading-relaxed animate-in fade-in slide-in-from-left-1 duration-200',
                 l.type === 'player' && 'text-stone-300',
                 l.type === 'crit' && 'text-amber-300 font-semibold',
                 l.type === 'monster' && 'text-red-300/90',
@@ -282,10 +298,10 @@ export function CombatPanel() {
         {REGIONS.map(r => (
           <button key={r.id} onClick={() => setRegionId(r.id)}
             className={cn(
-              'shrink-0 px-3 py-2 rounded-xl text-xs font-medium border min-h-[40px] transition',
+              'shrink-0 px-3 py-2 rounded-xl text-xs font-medium border min-h-[40px] transition-all',
               regionId === r.id
-                ? 'bg-amber-900/70 border-amber-600 text-amber-200'
-                : 'bg-stone-900 border-stone-800 text-stone-400'
+                ? 'bg-gradient-to-b from-amber-800/80 to-amber-950/70 border-amber-500/60 text-amber-100 shadow-[0_0_14px_rgba(245,158,11,0.15)]'
+                : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700'
             )}>
             <span className="mr-1" aria-hidden>{r.icon}</span>{r.name}
             <span className="block text-[9px] opacity-70">{r.minTier}阶起</span>
@@ -300,7 +316,7 @@ export function CombatPanel() {
       {/* 世界 BOSS 入口 */}
       <button onClick={() => { store.setMoreView('worldboss'); store.setTab('more'); }}
         className="w-full bg-gradient-to-r from-rose-950/70 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl p-3 flex items-center gap-3 min-h-[64px] active:scale-[0.99]">
-        <span className="text-3xl animate-pulse" aria-hidden>{WORLD_BOSSES[store.worldBoss.bossIdx % WORLD_BOSSES.length].icon}</span>
+        <span className="text-3xl animate-breathe" aria-hidden>{WORLD_BOSSES[store.worldBoss.bossIdx % WORLD_BOSSES.length].icon}</span>
         <span className="flex-1 text-left">
           <span className="block text-sm font-semibold text-rose-200">世界 BOSS 降临</span>
           <span className="block text-[10px] text-stone-500">剩余血量 {formatNum(store.worldBoss.hp)} · 伤害累积挑战，击杀得仙品装备</span>
@@ -338,9 +354,11 @@ export function CombatPanel() {
           const weak = m.tier < currentTier - 6;
           return (
             <div key={m.id}
-              className={cn('bg-stone-900/80 border rounded-xl p-3 flex items-center gap-3',
-                m.isBoss ? 'border-rose-800/60' : 'border-stone-800')}>
-              <div className={cn('text-3xl shrink-0', m.isBoss && 'animate-pulse')} aria-hidden>{m.icon}</div>
+              className={cn('border rounded-xl p-3 flex items-center gap-3 transition-colors',
+                m.isBoss
+                  ? 'bg-gradient-to-r from-rose-950/40 via-stone-900/80 to-stone-900/80 border-rose-800/60'
+                  : 'bg-stone-900/80 border-stone-800 hover:bg-stone-900')}>
+              <div className={cn('text-3xl shrink-0', m.isBoss && 'animate-breathe')} aria-hidden>{m.icon}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={cn('text-sm font-semibold truncate', m.isBoss ? 'text-rose-300' : 'text-stone-200')}>{m.name}</span>
@@ -373,20 +391,34 @@ export function CombatPanel() {
 
 // ---- 子组件 ----
 
-function CombatantCard({ icon, name, hp, maxHp, atk, def, accent }: {
+function CombatantCard({ icon, name, hp, maxHp, atk, def, accent, hitEpoch }: {
   icon: string; name: string; hp: number; maxHp: number; atk: number; def: number;
-  accent: 'amber' | 'stone' | 'rose';
+  accent: 'amber' | 'stone' | 'rose'; hitEpoch: number;
 }) {
+  // 血量动态配色：充足绿 → 过半黄 → 危急红
+  const pct = maxHp > 0 ? hp / maxHp : 0;
+  const hpBar = pct > 0.5
+    ? 'bg-gradient-to-r from-emerald-600 to-emerald-400'
+    : pct > 0.25
+      ? 'bg-gradient-to-r from-amber-600 to-amber-400'
+      : 'bg-gradient-to-r from-red-700 to-red-500';
+
   return (
-    <div>
+    <div className="relative">
+      {/* 受击红闪（key 变化重挂载触发动画） */}
+      {hitEpoch > 0 && (
+        <div key={`flash-${hitEpoch}`} aria-hidden className="absolute inset-0 rounded-lg pointer-events-none animate-hit-flash" />
+      )}
       <div className="flex items-center justify-between mb-1">
         <span className="flex items-center gap-1.5 text-sm font-semibold text-stone-200">
-          <span className="text-xl" aria-hidden>{icon}</span>{name}
+          <span key={`icon-${hitEpoch}`} className="text-xl inline-block animate-hit" aria-hidden>{icon}</span>{name}
         </span>
-        <span className="text-[10px] text-stone-500 tabular-nums">攻{atk} 防{def}</span>
+        <span className="text-[10px] text-stone-500 tabular-nums">
+          <span className="text-amber-300/80">攻{formatNum(atk)}</span> · <span className="text-stone-300">防{formatNum(def)}</span>
+        </span>
       </div>
       <ProgressBar value={hp} max={maxHp} className="h-3.5"
-        barClass={accent === 'amber' ? 'bg-amber-500' : accent === 'rose' ? 'bg-rose-500' : 'bg-stone-500'} showText />
+        barClass={hpBar} showText />
     </div>
   );
 }
@@ -398,7 +430,9 @@ function BattleResult({ battle, monster, onAgain, onBack }: {
   const r = battle.rewards;
   return (
     <div className={cn('rounded-xl border p-3 space-y-2',
-      won ? 'bg-emerald-950/40 border-emerald-800' : 'bg-red-950/40 border-red-900')}>
+      won
+        ? 'bg-gradient-to-b from-emerald-950/50 to-emerald-950/20 border-emerald-700/80 shadow-[0_0_20px_rgba(16,185,129,0.12)]'
+        : 'bg-red-950/40 border-red-900')}>
       <div className={cn('text-sm font-bold text-center', won ? 'text-emerald-300' : 'text-red-300')}>
         {won ? `⚔️ 战胜 ${monster.name}！` : `💀 败于 ${monster.name}`}
       </div>

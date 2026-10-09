@@ -30,27 +30,30 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="p-3 pb-24 space-y-3">
       <div className="flex items-center gap-1">
-        <button onClick={onBack} className="text-stone-400 min-h-[40px] min-w-[40px] flex items-center justify-center" aria-label="返回">
+        <button onClick={onBack} className="text-stone-400 min-h-[40px] min-w-[40px] flex items-center justify-center -ml-1 rounded-lg hover:bg-stone-900" aria-label="返回">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-sm font-bold text-amber-100">世界 BOSS</h2>
+        <h2 className="font-xianzi text-base font-bold text-gold-grad tracking-widest">世界 BOSS</h2>
       </div>
 
       {/* BOSS 卡 */}
-      <div className="bg-gradient-to-br from-rose-950/60 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl p-4">
-        <div className="flex items-start justify-between">
+      <div className="bg-gradient-to-br from-rose-950/60 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl p-4 relative overflow-hidden">
+        <div aria-hidden className="absolute -top-8 -left-8 w-36 h-36 rounded-full bg-rose-600/10 blur-2xl pointer-events-none" />
+        <div className="flex items-start justify-between relative">
           <div className="flex items-center gap-3">
-            <div className="text-5xl animate-pulse" aria-hidden>{boss.icon}</div>
+            <div className="w-16 h-16 rounded-full border border-rose-800/50 bg-rose-950/50 flex items-center justify-center shrink-0">
+              <div className="text-4xl animate-breathe" aria-hidden>{boss.icon}</div>
+            </div>
             <div>
               <div className="text-lg font-bold text-rose-200">{boss.name}</div>
               <div className="text-[10px] text-stone-400 mt-0.5">{boss.title}</div>
             </div>
           </div>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-900/70 text-rose-300 shrink-0">{boss.tier}阶·世界级</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-900/70 text-rose-300 border border-rose-800/60 shrink-0">{boss.tier}阶·世界级</span>
         </div>
 
-        <div className="mt-3">
-          <ProgressBar value={wb.hp} max={maxHp} className="h-4" barClass="bg-rose-500" showText />
+        <div className="mt-3 relative">
+          <ProgressBar value={wb.hp} max={maxHp} className="h-4" barClass="bg-gradient-to-r from-rose-700 to-rose-500" showText />
           <div className="flex justify-between text-[10px] text-stone-500 mt-1 tabular-nums">
             <span>剩余血量 {formatNum(wb.hp)} / {formatNum(maxHp)}</span>
             <span>已削减 {((1 - wb.hp / maxHp) * 100).toFixed(1)}%</span>

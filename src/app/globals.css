@@ -123,15 +123,69 @@
 
 /* ===== 仙途挂机 自定义样式 ===== */
 
-/* 隐藏滚动条（横向 chips 等） */
-.scrollbar-none {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* ---------- 字体 ---------- */
+/* 标题用楷体/宋体栈营造仙侠感，正文保持无衬线保证可读性 */
+:root {
+  --font-xianzi: "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "Noto Serif SC", "SimSun", serif;
 }
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
+.font-xianzi {
+  font-family: var(--font-xianzi);
 }
 
+/* 金色渐变文字（标题/logo 用） */
+.text-gold-grad {
+  background: linear-gradient(180deg, #fef3c7 0%, #fbbf24 55%, #b45309 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* 兼容不支持 background-clip:text 时的兜底 */
+  @supports not (-webkit-background-clip: text) {
+    color: #fbbf24;
+  }
+}
+
+/* ---------- 仙侠氛围背景 ---------- */
+/* 固定装饰层：顶部月晕 + 远山剪影 + 微光星点，纯 CSS 无图片资源 */
+.xiantu-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 32% at 50% -6%, rgba(251, 191, 36, 0.07), transparent 70%),
+    radial-gradient(ellipse 46% 20% at 82% 4%, rgba(217, 119, 6, 0.05), transparent 70%);
+}
+.xiantu-bg::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 375 160' preserveAspectRatio='xMidYMax slice'%3E%3Cpath d='M0 160 L0 108 L38 72 L74 104 L118 52 L162 98 L206 58 L248 94 L296 46 L338 88 L375 60 L375 160 Z' fill='%231c1917'/%3E%3Cpath d='M0 160 L0 132 L48 98 L92 126 L138 86 L188 120 L238 82 L288 116 L330 88 L375 112 L375 160 Z' fill='%23292524' opacity='0.65'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  opacity: 0.85;
+}
+.xiantu-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(254, 243, 199, 0.5), transparent 100%),
+    radial-gradient(1px 1px at 28% 9%, rgba(254, 243, 199, 0.35), transparent 100%),
+    radial-gradient(1.5px 1.5px at 47% 15%, rgba(254, 243, 199, 0.28), transparent 100%),
+    radial-gradient(1px 1px at 66% 7%, rgba(254, 243, 199, 0.42), transparent 100%),
+    radial-gradient(1.5px 1.5px at 81% 20%, rgba(254, 243, 199, 0.3), transparent 100%),
+    radial-gradient(1px 1px at 91% 11%, rgba(254, 243, 199, 0.38), transparent 100%);
+  animation: twinkle 5s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* ---------- 动画 ---------- */
 /* 开局漂浮动画 */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -141,9 +195,119 @@
   animation: float 3s ease-in-out infinite;
 }
 
+/* 进度条流光扫过 */
+@keyframes shimmer {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+.progress-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.progress-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+  animation: shimmer 2.2s ease-in-out infinite;
+}
+
+/* 战斗受击：横向抖动（图标）+ 红色闪光淡出（覆盖层） */
+@keyframes hitShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.animate-hit {
+  animation: hitShake 0.35s ease-in-out;
+}
+@keyframes hitFlash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-hit-flash {
+  background: radial-gradient(ellipse at center, rgba(244, 63, 94, 0.22), rgba(244, 63, 94, 0.07));
+  animation: hitFlash 0.45s ease-out forwards;
+}
+
+/* 妖王/BOSS 呼吸红光 */
+@keyframes breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.35));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.75));
+    transform: scale(1.05);
+  }
+}
+.animate-breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* 活跃导航图标柔光 */
+.nav-glow {
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.55));
+}
+
+/* 金色呼吸边框（出战中/选中态） */
+@keyframes goldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.25); }
+  50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+}
+.animate-gold-pulse {
+  animation: goldPulse 2s ease-in-out infinite;
+}
+
+/* 翡翠呼吸边框（修炼中） */
+@keyframes emeraldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.22); }
+  50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+}
+.animate-emerald-pulse {
+  animation: emeraldPulse 2s ease-in-out infinite;
+}
+
+/* ---------- 细节 ---------- */
+/* 隐藏滚动条（横向 chips 等） */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* 自定义细滚动条（纵向列表） */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 113, 108, 0.4) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.4);
+  border-radius: 999px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* 数值字体 */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* 文本选中色 */
+::selection {
+  background: rgba(245, 158, 11, 0.35);
+  color: #fef3c7;
 }
 
 /* 防止移动端点按高亮闪烁 */

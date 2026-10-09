@@ -6,15 +6,22 @@ import { QUALITY_COLORS, QUALITY_NAMES, QUALITY_TEXT } from '@/lib/game/items';
 import { ItemQuality } from '@/types/game';
 import { cn } from '@/lib/utils';
 
-// 区块卡片
+// 区块卡片（标题带金色装饰竖条）
 export function Section({ title, extra, children, className }: {
   title?: string; extra?: ReactNode; children: ReactNode; className?: string;
 }) {
   return (
-    <section className={cn('bg-stone-900/80 border border-stone-800 rounded-xl p-3', className)}>
+    <section className={cn(
+      'bg-stone-900/80 border border-stone-800/80 rounded-xl p-3',
+      'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]',
+      className
+    )}>
       {title && (
-        <header className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-amber-200/90">{title}</h3>
+        <header className="flex items-center justify-between mb-2.5">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-200/90">
+            <span className="inline-block w-[3px] h-3.5 rounded-full bg-gradient-to-b from-amber-400 to-amber-700" aria-hidden />
+            {title}
+          </h3>
           {extra}
         </header>
       )}
@@ -23,19 +30,27 @@ export function Section({ title, extra, children, className }: {
   );
 }
 
-// 进度条
-export function ProgressBar({ value, max, className, barClass, showText }: {
-  value: number; max: number; className?: string; barClass?: string; showText?: boolean;
+// 进度条（带流光扫过效果）
+export function ProgressBar({ value, max, className, barClass, showText, shimmer = true }: {
+  value: number; max: number; className?: string; barClass?: string; showText?: boolean; shimmer?: boolean;
 }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className={cn('relative h-2 w-full bg-stone-800 rounded-full overflow-hidden', className)}>
+    <div className={cn(
+      'relative h-2 w-full bg-stone-800 rounded-full overflow-hidden',
+      'shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]',
+      className
+    )}>
       <div
-        className={cn('h-full bg-amber-500 rounded-full transition-[width] duration-300', barClass)}
+        className={cn(
+          'h-full rounded-full transition-[width] duration-300 ease-out',
+          shimmer && 'progress-shimmer',
+          barClass || 'bg-gradient-to-r from-amber-600 to-amber-400'
+        )}
         style={{ width: `${pct}%` }}
       />
       {showText && (
-        <span className="absolute inset-0 flex items-center justify-center text-[9px] text-white/90 font-medium tabular-nums">
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] text-white/90 font-medium tabular-nums drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
           {Math.floor(value)}/{Math.floor(max)}
         </span>
       )}
@@ -46,7 +61,7 @@ export function ProgressBar({ value, max, className, barClass, showText }: {
 // 品质徽标
 export function QualityBadge({ quality }: { quality: ItemQuality }) {
   return (
-    <span className={cn('text-[10px] px-1 py-0.5 rounded border', QUALITY_COLORS[quality])}>
+    <span className={cn('text-[10px] px-1 py-0.5 rounded border bg-stone-950/60', QUALITY_COLORS[quality])}>
       {QUALITY_NAMES[quality]}
     </span>
   );
@@ -63,7 +78,7 @@ export function StatPill({ icon, value, label, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 bg-stone-800/80 rounded-lg px-2 py-1 text-xs text-stone-200 min-h-[32px]"
+      className="flex items-center gap-1 bg-stone-800/70 border border-stone-700/50 rounded-lg px-2 py-1 text-xs text-stone-200 min-h-[32px] transition-colors active:bg-stone-700/70"
     >
       <span aria-hidden>{icon}</span>
       <span className="tabular-nums font-medium">{value}</span>
@@ -72,7 +87,7 @@ export function StatPill({ icon, value, label, onClick }: {
   );
 }
 
-// 主操作按钮
+// 主操作按钮（金色渐变 + 内高光）
 export function ActionButton({ children, onClick, disabled, variant = 'primary', className }: {
   children: ReactNode; onClick?: () => void; disabled?: boolean;
   variant?: 'primary' | 'ghost' | 'danger'; className?: string;
@@ -82,10 +97,15 @@ export function ActionButton({ children, onClick, disabled, variant = 'primary',
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'min-h-[44px] px-4 rounded-xl text-sm font-semibold transition active:scale-95 disabled:opacity-40 disabled:active:scale-100',
-        variant === 'primary' && 'bg-amber-600 hover:bg-amber-500 text-white shadow-md shadow-amber-900/40',
+        'min-h-[44px] px-4 rounded-xl text-sm font-semibold transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 select-none',
+        variant === 'primary' && [
+          'text-amber-50 border border-amber-500/60',
+          'bg-gradient-to-b from-amber-500 to-amber-700',
+          'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25),0_4px_10px_-2px_rgba(69,26,3,0.7)]',
+          'hover:from-amber-400 hover:to-amber-600',
+        ],
         variant === 'ghost' && 'bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700',
-        variant === 'danger' && 'bg-red-900/80 hover:bg-red-800 text-red-100 border border-red-800',
+        variant === 'danger' && 'bg-gradient-to-b from-red-800 to-red-950 hover:from-red-700 hover:to-red-900 text-red-100 border border-red-700/60',
         className
       )}
     >

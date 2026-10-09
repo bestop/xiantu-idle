@@ -19,10 +19,10 @@ export function PetPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="p-3 pb-24 space-y-3">
       <div className="flex items-center gap-1">
-        <button onClick={onBack} className="text-stone-400 min-h-[40px] min-w-[40px] flex items-center justify-center" aria-label="返回">
+        <button onClick={onBack} className="text-stone-400 min-h-[40px] min-w-[40px] flex items-center justify-center -ml-1 rounded-lg hover:bg-stone-900" aria-label="返回">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-sm font-bold text-amber-100">灵宠舍（{pets.length}/{MAX_PETS}）</h2>
+        <h2 className="font-xianzi text-base font-bold text-gold-grad tracking-widest">灵宠舍（{pets.length}/{MAX_PETS}）</h2>
       </div>
 
       <Section title="灵宠机制">
@@ -34,8 +34,10 @@ export function PetPanel({ onBack }: { onBack: () => void }) {
       </Section>
 
       {pets.length === 0 ? (
-        <div className="text-center py-10 bg-stone-900/60 border border-stone-800 rounded-xl">
-          <div className="text-4xl mb-2 opacity-40" aria-hidden>🥚</div>
+        <div className="text-center py-10 bg-stone-900/40 border border-dashed border-stone-800 rounded-xl">
+          <div className="w-16 h-16 mx-auto mb-3 rounded-full border border-stone-700/60 bg-stone-900/80 flex items-center justify-center">
+            <span className="text-3xl opacity-60 animate-float" aria-hidden>🥚</span>
+          </div>
           <div className="text-xs text-stone-500">尚未收服任何灵宠</div>
           <div className="text-[10px] text-stone-600 mt-1">去战斗页挑战妖兽试试运气吧</div>
         </div>
@@ -49,10 +51,16 @@ export function PetPanel({ onBack }: { onBack: () => void }) {
             const xpNeed = petXpToNext(pet.level);
             return (
               <div key={pet.uid}
-                className={cn('rounded-xl border p-3 space-y-2',
-                  isActive ? 'bg-emerald-950/30 border-emerald-700' : 'bg-stone-900/80 border-stone-800')}>
+                className={cn('rounded-xl border p-3 space-y-2 relative overflow-hidden',
+                  isActive
+                    ? 'bg-gradient-to-br from-emerald-950/40 to-stone-900/90 border-emerald-600/70 shadow-[0_0_16px_rgba(16,185,129,0.12)]'
+                    : 'bg-stone-900/80 border-stone-800')}>
+                {isActive && <div aria-hidden className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />}
                 <div className="flex items-center gap-2.5">
-                  <div className={cn('text-3xl', isActive && 'animate-pulse')} aria-hidden>{m.icon}</div>
+                  <div className={cn('w-11 h-11 shrink-0 rounded-full border flex items-center justify-center',
+                    isActive ? 'border-emerald-700/60 bg-emerald-950/50' : 'border-stone-700/60 bg-stone-800/60')}>
+                    <span className={cn('text-2xl', isActive && 'animate-float')} aria-hidden>{m.icon}</span>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className={cn('text-sm font-semibold truncate', isActive ? 'text-emerald-300' : 'text-stone-200')}>
@@ -69,7 +77,7 @@ export function PetPanel({ onBack }: { onBack: () => void }) {
                 </div>
 
                 <ProgressBar value={pet.xp} max={xpNeed} className="h-1.5"
-                  barClass={isActive ? 'bg-emerald-500' : 'bg-stone-600'} />
+                  barClass={isActive ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-stone-600'} />
 
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[10px] text-amber-300/90 tabular-nums">

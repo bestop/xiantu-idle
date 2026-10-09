@@ -8,6 +8,7 @@ import { petBonus, petStats, petXpToNext, MAX_PET_LEVEL } from '@/lib/game/pets'
 import { MONSTER_MAP } from '@/lib/game/monsters';
 import { Section, ProgressBar, StatPill, ActionButton, formatNum, formatDuration } from './ui-bits';
 import { QUALITY_TEXT } from '@/lib/game/items';
+import { cn } from '@/lib/utils';
 
 export function HomePanel() {
   const state = useGameStore();
@@ -25,24 +26,28 @@ export function HomePanel() {
   return (
     <div className="space-y-3 p-3 pb-24">
       {/* 角色卡 */}
-      <Section className="bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950/40">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-lg font-bold text-amber-100 flex items-center gap-2">
-              <span aria-hidden>🧙</span>{state.playerName}
-            </div>
-            <div className="text-xs text-stone-400 mt-1">
-              境界：{title} · 战斗等级 {cSum} · 技能总等级 {tSum}
+      <Section className="bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950/40 relative overflow-hidden">
+        {/* 顶部金晕装饰 */}
+        <div aria-hidden className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-600/8 blur-2xl pointer-events-none" />
+        <div className="flex items-center gap-3 relative">
+          {/* 角色金环头像 */}
+          <div className="w-14 h-14 shrink-0 rounded-full border border-amber-600/50 bg-gradient-to-br from-stone-800 to-amber-950/70 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.15),inset_0_1px_0_0_rgba(255,255,255,0.08)]">
+            <span className="text-3xl animate-float" aria-hidden>🧙</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-lg font-bold text-amber-100 truncate">{state.playerName}</div>
+            <div className="text-xs text-stone-400 mt-0.5">
+              境界 <span className="text-amber-300">{title}</span> · 战斗 {cSum} · 技能 {tSum}
             </div>
           </div>
-          <div className="text-right text-[10px] text-stone-500">
+          <div className="text-right text-[10px] text-stone-500 shrink-0 tabular-nums">
             <div>修行 {formatDuration((Date.now() - state.stats.playStart) / 1000)}</div>
-            <div>击杀 {formatNum(state.stats.totalKills)} · 胜率 {state.stats.totalBattles > 0 ? Math.round(state.stats.totalWins / state.stats.totalBattles * 100) : 0}%</div>
+            <div className="mt-0.5">击杀 {formatNum(state.stats.totalKills)} · 胜率 {state.stats.totalBattles > 0 ? Math.round(state.stats.totalWins / state.stats.totalBattles * 100) : 0}%</div>
           </div>
         </div>
 
         {/* 属性面板 */}
-        <div className="grid grid-cols-3 gap-1.5 mt-3">
+        <div className="grid grid-cols-3 gap-1.5 mt-3 relative">
           <StatPill icon="❤️" value={formatNum(stats.maxHp)} label="生命" />
           <StatPill icon="⚔️" value={formatNum(stats.atk)} label="攻击" />
           <StatPill icon="🛡️" value={formatNum(stats.def)} label="防御" />
@@ -52,9 +57,10 @@ export function HomePanel() {
         </div>
 
         {/* 装备摘要 */}
-        <div className="flex gap-1.5 mt-2">
+        <div className="flex gap-1.5 mt-2 relative">
           {equips.map((e, i) => (
-            <div key={i} className="flex-1 bg-stone-800/60 rounded-lg px-2 py-1.5 text-center min-h-[44px] flex flex-col justify-center">
+            <div key={i} className={cn('flex-1 rounded-lg px-2 py-1.5 text-center min-h-[44px] flex flex-col justify-center',
+              e ? 'bg-stone-800/60 border border-stone-700/50' : 'bg-stone-900/40 border border-dashed border-stone-800')}>
               {e ? (
                 <>
                   <div className={`text-[11px] font-medium ${QUALITY_TEXT[e.quality]}`}>{e.icon} {e.name}</div>
@@ -89,10 +95,12 @@ export function HomePanel() {
         const bonus = petBonus(pet);
         const xpNeed = petXpToNext(pet.level);
         return (
-          <Section className="bg-gradient-to-br from-emerald-950/40 via-stone-900 to-stone-900">
+          <Section className="bg-gradient-to-br from-emerald-950/40 via-stone-900 to-stone-900 border-emerald-900/50">
             <button onClick={() => { state.setMoreView('pets'); state.setTab('more'); }} className="w-full text-left">
               <div className="flex items-center gap-2.5">
-                <span className="text-3xl animate-pulse" aria-hidden>{m.icon}</span>
+                <div className="w-11 h-11 shrink-0 rounded-full border border-emerald-700/50 bg-emerald-950/40 flex items-center justify-center">
+                  <span className="text-2xl animate-float" aria-hidden>{m.icon}</span>
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-emerald-300">{m.name} <span className="text-[10px] text-stone-500">Lv.{pet.level} · 出战中</span></div>
                   <div className="text-[10px] text-stone-500 tabular-nums">
@@ -102,7 +110,7 @@ export function HomePanel() {
                 <span className="text-[10px] text-amber-400 shrink-0">灵宠舍 ›</span>
               </div>
               {pet.level < MAX_PET_LEVEL && (
-                <ProgressBar value={pet.xp} max={xpNeed} className="mt-2 h-1.5" barClass="bg-emerald-500" />
+                <ProgressBar value={pet.xp} max={xpNeed} className="mt-2 h-1.5" barClass="bg-gradient-to-r from-emerald-600 to-emerald-400" />
               )}
             </button>
           </Section>
@@ -115,14 +123,16 @@ export function HomePanel() {
       }>
         {act ? (
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl animate-pulse" aria-hidden>{act.icon}</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-11 h-11 shrink-0 rounded-full border border-emerald-700/40 bg-emerald-950/30 flex items-center justify-center">
+                <span className="text-2xl animate-float" aria-hidden>{act.icon}</span>
+              </div>
               <div className="flex-1">
                 <div className="text-sm text-stone-200 font-medium">{act.name}</div>
                 <div className="text-[10px] text-stone-500">每轮 {act.intervalSec} 秒 · +{act.skillXp} 经验{act.reward.gold ? ` · +${Math.round((act.reward.gold ?? 0) * (1 + state.skills.begging.level * 0.06))} 金币` : ''}</div>
               </div>
             </div>
-            <ProgressBar value={state.activityProgress} max={1} className="mt-2 h-2.5" barClass="bg-emerald-500" showText />
+            <ProgressBar value={state.activityProgress} max={1} className="mt-2 h-2.5" barClass="bg-gradient-to-r from-emerald-600 to-emerald-400" showText />
           </div>
         ) : (
           <div className="text-center py-3">

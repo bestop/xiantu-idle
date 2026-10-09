@@ -12,7 +12,7 @@ import { WorldBossPanel } from './WorldBossPanel';
 import { LeaderboardPanel } from './LeaderboardPanel';
 import { Section, ActionButton, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal } from 'lucide-react';
 
 export function MorePanel() {
   const view = useGameStore(s => s.moreView);
@@ -27,27 +27,29 @@ export function MorePanel() {
   if (view === 'settings') return <SettingsView onBack={() => setView('root')} />;
 
   const entries = [
-    { id: 'pets', icon: <PawPrint className="w-6 h-6" />, title: '灵宠舍', desc: '收服妖兽为灵宠，出战提供属性加成', badge: '' },
-    { id: 'worldboss', icon: <Skull className="w-6 h-6" />, title: '世界 BOSS', desc: '血量持久的巨兽，伤害累积挑战', badge: '' },
-    { id: 'leaderboard', icon: <Medal className="w-6 h-6" />, title: '天梯榜', desc: '综合实力排名，与万千修士争锋', badge: '' },
-    { id: 'shop', icon: <Store className="w-6 h-6" />, title: '仙市', desc: '购买丹药、材料与装备宝袋', badge: '' },
-    { id: 'achievements', icon: <Trophy className="w-6 h-6" />, title: '成就', desc: '永久成就与宝石奖励', badge: '' },
-    { id: 'codex', icon: <BookOpen className="w-6 h-6" />, title: '妖兽图鉴', desc: '收集怪物卡片，点亮图鉴', badge: '' },
-    { id: 'settings', icon: <Settings className="w-6 h-6" />, title: '设置', desc: '重置存档与游戏说明', badge: '' },
+    { id: 'pets', icon: <PawPrint className="w-5 h-5" />, title: '灵宠舍', desc: '收服妖兽为灵宠，出战提供属性加成', tone: 'text-emerald-300 bg-emerald-950/60 border-emerald-900/50' },
+    { id: 'worldboss', icon: <Skull className="w-5 h-5" />, title: '世界 BOSS', desc: '血量持久的巨兽，伤害累积挑战', tone: 'text-rose-300 bg-rose-950/60 border-rose-900/50' },
+    { id: 'leaderboard', icon: <Medal className="w-5 h-5" />, title: '天梯榜', desc: '综合实力排名，与万千修士争锋', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
+    { id: 'shop', icon: <Store className="w-5 h-5" />, title: '仙市', desc: '购买丹药、材料与装备宝袋', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
+    { id: 'achievements', icon: <Trophy className="w-5 h-5" />, title: '成就', desc: '永久成就与宝石奖励', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
+    { id: 'codex', icon: <BookOpen className="w-5 h-5" />, title: '妖兽图鉴', desc: '收集怪物卡片，点亮图鉴', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
+    { id: 'settings', icon: <Settings className="w-5 h-5" />, title: '设置', desc: '重置存档与游戏说明', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
   ] as const;
 
   return (
     <div className="p-3 pb-24 space-y-2">
       {entries.map(e => (
         <button key={e.id} onClick={() => setView(e.id)}
-          className={cn('w-full bg-stone-900/80 border rounded-xl p-3.5 flex items-center gap-3 text-left active:scale-[0.99] min-h-[64px]',
+          className={cn('w-full bg-stone-900/80 border rounded-xl p-3.5 flex items-center gap-3 text-left active:scale-[0.99] min-h-[64px] transition-colors hover:bg-stone-900',
             e.id === 'worldboss' ? 'border-rose-900/60' : 'border-stone-800')}>
-          <span className={e.id === 'worldboss' ? 'text-rose-400' : 'text-amber-300'}>{e.icon}</span>
+          <span className={cn('w-10 h-10 rounded-lg border flex items-center justify-center shrink-0', e.tone)} aria-hidden>
+            {e.icon}
+          </span>
           <div className="flex-1">
             <div className="text-sm font-semibold text-stone-200">{e.title}</div>
             <div className="text-[10px] text-stone-500">{e.desc}</div>
           </div>
-          <ChevronLeft className="w-4 h-4 text-stone-600 rotate-180" />
+          <ChevronRight className="w-4 h-4 text-stone-600 shrink-0" />
         </button>
       ))}
       <div className="text-center text-[10px] text-stone-600 pt-2">
@@ -112,8 +114,8 @@ function ShopView({ onBack }: { onBack: () => void }) {
               </div>
             );
           })}
-          <div className="flex items-center gap-2.5 bg-purple-950/30 border border-purple-900 rounded-lg p-2.5">
-            <span className="text-2xl" aria-hidden>🎁</span>
+          <div className="flex items-center gap-2.5 bg-purple-950/30 border border-purple-900/60 rounded-lg p-2.5">
+            <span className="w-10 h-10 rounded-lg border border-purple-800/50 bg-purple-950/60 flex items-center justify-center text-xl shrink-0" aria-hidden>🎁</span>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-purple-300">稀有装备宝袋</div>
               <div className="text-[10px] text-stone-500">开出一件 {avgLv} 阶上品及以上随机装备</div>
@@ -123,8 +125,8 @@ function ShopView({ onBack }: { onBack: () => void }) {
               if (eq) { setMsg(`获得【${eq.name}】！`); setTimeout(() => setMsg(null), 2500); }
             }}>💎 20</ActionButton>
           </div>
-          <div className="flex items-center gap-2.5 bg-amber-950/30 border border-amber-900 rounded-lg p-2.5">
-            <span className="text-2xl" aria-hidden>🎑</span>
+          <div className="flex items-center gap-2.5 bg-amber-950/30 border border-amber-900/60 rounded-lg p-2.5">
+            <span className="w-10 h-10 rounded-lg border border-amber-800/50 bg-amber-950/60 flex items-center justify-center text-xl shrink-0" aria-hidden>🎑</span>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-amber-300">仙品装备宝袋</div>
               <div className="text-[10px] text-stone-500">开出一件 {avgLv} 阶仙品随机装备</div>
@@ -200,8 +202,10 @@ function CodexView({ onBack }: { onBack: () => void }) {
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-3 px-3">
         {REGIONS.map(r => (
           <button key={r.id} onClick={() => setRegionId(r.id)}
-            className={cn('shrink-0 px-3 py-1.5 rounded-lg text-xs border min-h-[36px]',
-              regionId === r.id ? 'bg-amber-900/70 border-amber-600 text-amber-200' : 'bg-stone-900 border-stone-800 text-stone-400')}>
+            className={cn('shrink-0 px-3 py-1.5 rounded-lg text-xs border min-h-[36px] transition-all',
+              regionId === r.id
+                ? 'bg-gradient-to-b from-amber-800/80 to-amber-950/70 border-amber-500/60 text-amber-100'
+                : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700')}>
             {r.icon}{r.name}
           </button>
         ))}
@@ -274,11 +278,11 @@ function SettingsView({ onBack }: { onBack: () => void }) {
 // ===== 通用子页头 =====
 function SubHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <div className="flex items-center gap-1">
-      <button onClick={onBack} className="text-stone-400 min-h-[40px] min-w-[40px] flex items-center justify-center" aria-label="返回">
+    <div className="flex items-center gap-1 pb-1">
+      <button onClick={onBack} className="text-stone-400 min-h-[40px] min-w-[40px] flex items-center justify-center -ml-1 rounded-lg hover:bg-stone-900" aria-label="返回">
         <ChevronLeft className="w-5 h-5" />
       </button>
-      <h2 className="text-sm font-bold text-amber-100">{title}</h2>
+      <h2 className="font-xianzi text-base font-bold text-gold-grad tracking-widest">{title}</h2>
     </div>
   );
 }

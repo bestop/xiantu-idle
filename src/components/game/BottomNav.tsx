@@ -1,4 +1,4 @@
-// 底部导航栏（移动端 App 风格，5 Tab）
+// 底部导航栏（移动端 App 风格，5 Tab，玻璃拟态）
 'use client';
 
 import { useGameStore, GameStore } from '@/store/game';
@@ -21,8 +21,10 @@ export function BottomNav() {
   return (
     <nav
       aria-label="主导航"
-      className="fixed bottom-0 left-0 right-0 z-30 bg-stone-950/95 backdrop-blur border-t border-stone-800 pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 right-0 z-30 bg-stone-950/85 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
     >
+      {/* 顶部金色 hairline */}
+      <div className="h-px bg-gradient-to-r from-transparent via-amber-800/40 to-transparent" aria-hidden />
       <div className="max-w-md mx-auto grid grid-cols-5">
         {TABS.map(t => {
           const active = tab === t.id;
@@ -32,13 +34,22 @@ export function BottomNav() {
               onClick={() => setTab(t.id)}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] transition',
+                'relative flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] transition-colors',
                 active ? 'text-amber-400' : 'text-stone-500 active:text-stone-300'
               )}
             >
-              <span className={cn('transition-transform', active && 'scale-110 -translate-y-0.5')}>{t.icon}</span>
-              <span className="text-[10px] font-medium">{t.label}</span>
-              {active && <span className="absolute top-0 w-8 h-0.5 bg-amber-500 rounded-full" />}
+              <span className={cn('transition-all duration-200', active && 'scale-110 -translate-y-0.5 nav-glow')}>
+                {t.icon}
+              </span>
+              <span className={cn('text-[10px] font-medium transition-colors', active && 'text-amber-300')}>{t.label}</span>
+              {/* 活跃指示条 */}
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute top-0 w-8 h-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-200',
+                  active ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-50'
+                )}
+              />
             </button>
           );
         })}

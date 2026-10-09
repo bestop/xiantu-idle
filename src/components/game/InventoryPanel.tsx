@@ -18,6 +18,26 @@ const SLOT_META: Record<EquipSlot, { icon: string; label: string }> = {
   accessory: { icon: '💍', label: '饰品' },
 };
 
+// 品质发光（已装备槽位）
+const QUALITY_GLOW: Record<ItemQuality, string> = {
+  common: 'shadow-[0_0_10px_rgba(120,113,108,0.15)]',
+  fine: 'shadow-[0_0_10px_rgba(16,185,129,0.2)]',
+  rare: 'shadow-[0_0_10px_rgba(34,211,238,0.2)]',
+  epic: 'shadow-[0_0_10px_rgba(168,85,247,0.25)]',
+  legendary: 'shadow-[0_0_12px_rgba(245,158,11,0.3)]',
+  mythic: 'shadow-[0_0_14px_rgba(244,63,94,0.35)]',
+};
+
+// 品质左侧色条
+const QUALITY_EDGE: Record<ItemQuality, string> = {
+  common: 'border-l-stone-600',
+  fine: 'border-l-emerald-600',
+  rare: 'border-l-cyan-600',
+  epic: 'border-l-purple-600',
+  legendary: 'border-l-amber-500',
+  mythic: 'border-l-rose-500',
+};
+
 export function InventoryPanel() {
   const store = useGameStore();
   const [tab, setTab] = useState<InvTab>('gear');
@@ -91,7 +111,10 @@ export function InventoryPanel() {
             const eq = store.equipped[slot];
             return (
               <button key={slot} onClick={() => eq && setDetailUid(eq.uid)}
-                className="bg-stone-800/60 rounded-lg p-2 min-h-[72px] flex flex-col items-center justify-center gap-1">
+                className={cn('rounded-lg p-2 min-h-[72px] flex flex-col items-center justify-center gap-1 border transition-colors',
+                  eq
+                    ? `bg-stone-800/60 border-stone-600/60 ${QUALITY_GLOW[eq.quality]}`
+                    : 'bg-stone-900/50 border border-dashed border-stone-800')}>
                 {eq ? (
                   <>
                     <span className="text-2xl" aria-hidden>{eq.icon}</span>
@@ -118,8 +141,10 @@ export function InventoryPanel() {
           { id: 'treasure', label: `宝藏 ${grouped.treasures.length}` },
         ] as { id: InvTab; label: string }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn('py-2 rounded-lg text-[11px] font-medium border min-h-[38px]',
-              tab === t.id ? 'bg-amber-900/70 border-amber-600 text-amber-200' : 'bg-stone-900 border-stone-800 text-stone-400')}>
+            className={cn('py-2 rounded-lg text-[11px] font-medium border min-h-[38px] transition-all',
+              tab === t.id
+                ? 'bg-gradient-to-b from-amber-800/80 to-amber-950/70 border-amber-500/60 text-amber-100'
+                : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700')}>
             {t.label}
           </button>
         ))}
@@ -135,8 +160,9 @@ export function InventoryPanel() {
             const isEquipped = Object.values(store.equipped).some(e => e?.uid === uid);
             return (
               <button key={uid} onClick={() => setDetailUid(uid)}
-                className={cn('w-full bg-stone-900/80 border rounded-xl p-2.5 flex items-center gap-2.5 text-left',
-                  isEquipped ? 'border-amber-700' : 'border-stone-800')}>
+                className={cn('w-full bg-stone-900/80 border rounded-xl p-2.5 flex items-center gap-2.5 text-left border-l-2 transition-colors hover:bg-stone-900',
+                  isEquipped ? 'border-amber-700' : 'border-stone-800',
+                  QUALITY_EDGE[eq.quality])}>
                 <span className="text-2xl" aria-hidden>{eq.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -166,7 +192,8 @@ export function InventoryPanel() {
             if (!item) return null;
             return (
               <button key={inv.itemId} onClick={() => setDetailBase(inv.itemId)}
-                className="w-full bg-stone-900/80 border border-stone-800 rounded-xl p-2.5 flex items-center gap-2.5 text-left">
+                className={cn('w-full bg-stone-900/80 border border-stone-800 border-l-2 rounded-xl p-2.5 flex items-center gap-2.5 text-left transition-colors hover:bg-stone-900',
+                  QUALITY_EDGE[item.quality])}>
                 <span className="text-2xl" aria-hidden>{item.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -198,7 +225,11 @@ function AttrBox({ icon, label, value, bonus }: { icon: string; label: string; v
 }
 
 function EmptyHint({ text }: { text: string }) {
-  return <div className="text-center text-xs text-stone-600 py-8">{text}</div>;
+  return (
+    <div className="text-center py-8 bg-stone-900/40 border border-dashed border-stone-800/80 rounded-xl">
+      <div className="text-xs text-stone-600">{text}</div>
+    </div>
+  );
 }
 
 function mainStatText(eq: Equipment): string {

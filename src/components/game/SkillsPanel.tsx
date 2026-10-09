@@ -36,8 +36,10 @@ export function SkillsPanel() {
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-3 px-3">
         {CATEGORY_TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn('shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border min-h-[36px]',
-              tab === t.id ? 'bg-amber-900/70 border-amber-600 text-amber-200' : 'bg-stone-900 border-stone-800 text-stone-400')}>
+            className={cn('shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border min-h-[36px] transition-all',
+              tab === t.id
+                ? 'bg-gradient-to-b from-amber-800/80 to-amber-950/70 border-amber-500/60 text-amber-100'
+                : 'bg-stone-900 border-stone-800 text-stone-400 hover:border-stone-700')}>
             {t.label}
           </button>
         ))}
@@ -52,19 +54,24 @@ export function SkillsPanel() {
           const maxed = prog.level >= MAX_SKILL_LEVEL;
           return (
             <button key={s.id} onClick={() => setDetail(s.id)}
-              className={cn('bg-stone-900/80 border rounded-xl p-2.5 text-left transition active:scale-[0.98]',
-                training ? 'border-emerald-700' : 'border-stone-800')}>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl" aria-hidden>{s.icon}</span>
+              className={cn('bg-stone-900/80 border rounded-xl p-2.5 text-left transition active:scale-[0.98] relative overflow-hidden',
+                training
+                  ? 'border-emerald-600/80 shadow-[0_0_14px_rgba(16,185,129,0.12)] animate-emerald-pulse'
+                  : 'border-stone-800 hover:bg-stone-900')}>
+              {/* 修炼中顶部流光 */}
+              {training && <div aria-hidden className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />}
+              <div className="flex items-center gap-2">
+                <span className={cn('w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-xl border',
+                  training ? 'bg-emerald-950/50 border-emerald-800/60' : 'bg-stone-800/60 border-stone-700/50')} aria-hidden>{s.icon}</span>
                 <span className="text-xs font-semibold text-stone-200 flex-1">{s.name}</span>
-                {training && <span className="text-[9px] px-1 rounded bg-emerald-900 text-emerald-300 animate-pulse">修炼中</span>}
+                {training && <span className="text-[9px] px-1 rounded bg-emerald-900 text-emerald-300">修炼中</span>}
               </div>
-              <div className="flex items-baseline gap-1 mt-1">
+              <div className="flex items-baseline gap-1 mt-1.5">
                 <span className="text-lg font-bold text-amber-300 tabular-nums">{prog.level}</span>
                 <span className="text-[9px] text-stone-500">/{MAX_SKILL_LEVEL} 级</span>
               </div>
               <ProgressBar value={maxed ? 1 : prog.xp} max={maxed ? 1 : need} className="mt-1 h-1.5"
-                barClass={training ? 'bg-emerald-500' : 'bg-amber-500'} />
+                barClass={training ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'} />
             </button>
           );
         })}
@@ -116,8 +123,10 @@ function SkillDetail({ skillId, onBack }: { skillId: SkillId; onBack: () => void
       {/* 技能卡 */}
       <Section className="bg-gradient-to-br from-stone-900 to-stone-900/50">
         <div className="flex items-center gap-3">
-          <span className="text-4xl" aria-hidden>{def.icon}</span>
-          <div className="flex-1">
+          <div className="w-14 h-14 shrink-0 rounded-2xl border border-amber-700/40 bg-gradient-to-br from-stone-800 to-amber-950/60 flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.1)]">
+            <span className="text-3xl" aria-hidden>{def.icon}</span>
+          </div>
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-amber-100">{def.name}</h2>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-800 text-stone-400">
@@ -132,9 +141,9 @@ function SkillDetail({ skillId, onBack }: { skillId: SkillId; onBack: () => void
             <span className="text-stone-400">等级 <b className="text-amber-300 tabular-nums">{prog.level}</b> / {MAX_SKILL_LEVEL}</span>
             <span className="text-stone-500 tabular-nums">{formatNum(prog.xp)} / {formatNum(need)}</span>
           </div>
-          <ProgressBar value={prog.xp} max={need} className="h-2.5" showText />
+          <ProgressBar value={prog.xp} max={need} className="h-2.5" showText barClass="bg-gradient-to-r from-amber-600 to-amber-400" />
         </div>
-        <div className="mt-2 text-xs text-emerald-300 bg-emerald-950/40 rounded-lg px-2.5 py-2">
+        <div className="mt-2 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-900/40 rounded-lg px-2.5 py-2">
           当前效果：{effectText}
         </div>
       </Section>
@@ -253,7 +262,7 @@ function CraftSection({ kind, recipes }: { kind: 'cooking' | 'forging'; recipes:
         })}
         {msg && (
           <div className={cn('text-xs text-center py-1.5 rounded-lg',
-            msg.includes('不足') || msg.includes('不足') ? 'text-red-300 bg-red-950/50' : 'text-emerald-300 bg-emerald-950/50')}>
+            msg.includes('不足') || msg.includes('失败') ? 'text-red-300 bg-red-950/50' : 'text-emerald-300 bg-emerald-950/50')}>
             {msg}
           </div>
         )}
