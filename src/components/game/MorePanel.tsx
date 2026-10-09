@@ -7,12 +7,13 @@ import { getShopEntries } from '@/lib/game/engine';
 import { getItem, QUALITY_TEXT } from '@/lib/game/items';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
 import { REGIONS, getMonstersByRegion, TOTAL_MONSTERS } from '@/lib/game/monsters';
+import { SCENES, isSceneUnlocked, unlockedSceneCount, sceneUnlockHint, SceneKind } from '@/lib/game/scenes';
 import { PetPanel } from './PetPanel';
 import { WorldBossPanel } from './WorldBossPanel';
 import { LeaderboardPanel } from './LeaderboardPanel';
 import { Section, ActionButton, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal, Images } from 'lucide-react';
 
 export function MorePanel() {
   const view = useGameStore(s => s.moreView);
@@ -21,6 +22,7 @@ export function MorePanel() {
   if (view === 'shop') return <ShopView onBack={() => setView('root')} />;
   if (view === 'achievements') return <AchievementsView onBack={() => setView('root')} />;
   if (view === 'codex') return <CodexView onBack={() => setView('root')} />;
+  if (view === 'album') return <AlbumView onBack={() => setView('root')} />;
   if (view === 'pets') return <PetPanel onBack={() => setView('root')} />;
   if (view === 'worldboss') return <WorldBossPanel onBack={() => setView('root')} />;
   if (view === 'leaderboard') return <LeaderboardPanel onBack={() => setView('root')} />;
@@ -33,6 +35,7 @@ export function MorePanel() {
     { id: 'shop', icon: <Store className="w-5 h-5" />, title: '仙市', desc: '购买丹药、材料与装备宝袋', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
     { id: 'achievements', icon: <Trophy className="w-5 h-5" />, title: '成就', desc: '永久成就与宝石奖励', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
     { id: 'codex', icon: <BookOpen className="w-5 h-5" />, title: '妖兽图鉴', desc: '收集怪物卡片，点亮图鉴', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
+    { id: 'album', icon: <Images className="w-5 h-5" />, title: '山河画册', desc: '小修士的旅行明信片，到访一处收录一张', tone: 'text-sky-300 bg-sky-950/60 border-sky-900/50' },
     { id: 'settings', icon: <Settings className="w-5 h-5" />, title: '设置', desc: '重置存档与游戏说明', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
   ] as const;
 
@@ -228,6 +231,83 @@ function CodexView({ onBack }: { onBack: () => void }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ===== 山河画册（旅行青蛙式明信片相册） =====
+const ALBUM_GROUPS: { kind: SceneKind; label: string }[] = [
+  { kind: 'home', label: '我的洞府' },
+  { kind: 'region', label: '行走山河' },
+  { kind: 'activity', label: '修行手记' },
+  { kind: 'boss', label: '强敌之影' },
+];
+
+function AlbumView({ onBack }: { onBack: () => void }) {
+  const store = useGameStore();
+  const unlocked = unlockedSceneCount(store);
+
+  return (
+    <div className="p-3 pb-24 space-y-4">
+      <SubHeader title={`山河画册 (${unlocked}/${SCENES.length})`} onBack={onBack} />
+      <p className="text-[10px] text-stone-500 leading-relaxed">
+        同一位白衣小修士，走过一处山水，便寄回一张明信片。
+      </p>
+
+      {ALBUM_GROUPS.map(group => {
+        const scenes = SCENES.filter(s => s.kind === group.kind);
+        if (scenes.length === 0) return null;
+        const got = scenes.filter(s => isSceneUnlocked(s, store)).length;
+        return (
+          <div key={group.kind} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span aria-hidden className="w-1 h-3.5 rounded-full bg-gradient-to-b from-amber-400 to-amber-700" />
+              <span className="text-xs font-semibold text-stone-300">{group.label}</span>
+              <span className="text-[10px] text-stone-600 tabular-nums">{got}/{scenes.length}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {scenes.map(s => {
+                const has = isSceneUnlocked(s, store);
+                return (
+                  <div key={s.id}
+                    className={cn('relative rounded-xl overflow-hidden border aspect-[4/3]',
+                      has ? 'border-stone-700 bg-stone-900' : 'border-stone-800/60 bg-stone-950/60')}>
+                    <img src={s.img} alt={has ? s.name : '未解锁'}
+                      className={cn('absolute inset-0 w-full h-full object-cover transition',
+                        has ? '' : 'opacity-15 blur-[6px] grayscale scale-110')} />
+                    {has && <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent" />}
+                    <div className="absolute bottom-0 inset-x-0 px-2 py-1.5">
+                      <div className={cn('text-[11px] font-semibold truncate', has ? 'text-white' : 'text-stone-600')}>
+                        {has ? s.name : '？？？'}
+                      </div>
+                      {has ? (
+                        <div className="text-[9px] text-stone-300/90 line-clamp-2 leading-snug">{s.caption}</div>
+                      ) : (
+                        <div className="text-[9px] text-stone-600 flex items-center gap-1">
+                          🔒 {sceneUnlockHint(s)}
+                        </div>
+                      )}
+                    </div>
+                    {has && (
+                      <span aria-hidden className="absolute top-1.5 right-1.5 text-[8px] px-1 py-0.5 rounded bg-black/45 text-amber-200/90 border border-white/10">已收录</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {unlocked === SCENES.length ? (
+        <div className="text-center text-[11px] text-amber-300/90 bg-amber-950/30 border border-amber-900/50 rounded-xl py-2.5">
+          山河尽收眼底，仙途从未止步。画册已集齐！
+        </div>
+      ) : (
+        <div className="text-center text-[10px] text-stone-600">
+          去更远的山河，寄回更多的明信片。
+        </div>
+      )}
     </div>
   );
 }

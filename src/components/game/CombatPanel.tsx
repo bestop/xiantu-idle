@@ -10,6 +10,7 @@ import { PlayerStats, MonsterDef, BattleLogLine, BattleRewards, CombatantState }
 import { Section, ActionButton, ProgressBar, formatNum, QualityBadge } from './ui-bits';
 import { getItem, QUALITY_TEXT } from '@/lib/game/items';
 import { pillMultiplier } from '@/lib/game/skills';
+import { REGION_SCENE } from '@/lib/game/scenes';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, Play, Zap, Heart, Timer } from 'lucide-react';
 
@@ -210,6 +211,7 @@ export function CombatPanel() {
   const currentTier = Math.round(avgCombat / 5);
   const monster = battle ? MONSTER_MAP[battle.monsterId] : null;
   const buffLeft = store.buffExpireAt > Date.now() ? Math.ceil((store.buffExpireAt - Date.now()) / 1000) : 0;
+  const regionScene = REGION_SCENE[regionId];
 
   // ===== 战斗视图 =====
   if (battle && monster) {
@@ -219,6 +221,23 @@ export function CombatPanel() {
           className="flex items-center gap-1 text-xs text-stone-400 min-h-[36px] px-2">
           <ChevronLeft className="w-4 h-4" /> 逃离战斗
         </button>
+
+        {/* 此刻所在 · 区域明信片（旅行青蛙式） */}
+        {regionScene && (
+          <div className="relative rounded-xl overflow-hidden border border-stone-800 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+            <img src={regionScene.img} alt={regionScene.name} className="w-full h-28 object-cover" />
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+            <div className="absolute bottom-0 inset-x-0 px-3 py-2 flex items-end justify-between">
+              <div>
+                <div className="text-[9px] text-amber-200/80 tracking-[0.25em]">此刻所在</div>
+                <div className="text-sm font-bold text-white drop-shadow">{regionScene.name}</div>
+              </div>
+              <div className="text-[10px] text-stone-300/90 text-right">
+                与 <span className="text-rose-300">{monster.name}</span> 对峙
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 对阵卡 */}
         <div className="bg-gradient-to-b from-stone-900/90 to-stone-900/70 border border-stone-800 rounded-xl p-4 space-y-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
@@ -311,6 +330,22 @@ export function CombatPanel() {
 
       {store.autoBattleEnabled && (
         <div className="text-[10px] text-amber-400/80 text-center">自动战斗已开启：胜利后自动挑战同一妖兽</div>
+      )}
+
+      {/* 当前区域场景横幅 */}
+      {regionScene && (
+        <div className="relative rounded-xl overflow-hidden border border-stone-800">
+          <img src={regionScene.img} alt={regionScene.name} className="w-full h-24 object-cover" />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/25 to-black/40" />
+          <div className="absolute inset-0 px-3 py-2 flex flex-col justify-center">
+            <div className="text-sm font-bold text-white drop-shadow">
+              <span className="mr-1" aria-hidden>{REGIONS.find(r => r.id === regionId)?.icon}</span>{regionScene.name}
+            </div>
+            <div className="text-[10px] text-stone-300/90 mt-0.5 line-clamp-2 max-w-[85%]">
+              {REGIONS.find(r => r.id === regionId)?.description}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 世界 BOSS 入口 */}

@@ -8,6 +8,7 @@ import { petBonus, petStats, petXpToNext, MAX_PET_LEVEL } from '@/lib/game/pets'
 import { MONSTER_MAP } from '@/lib/game/monsters';
 import { Section, ProgressBar, StatPill, ActionButton, formatNum, formatDuration } from './ui-bits';
 import { QUALITY_TEXT } from '@/lib/game/items';
+import { ACTIVITY_SCENE, HOME_SCENE } from '@/lib/game/scenes';
 import { cn } from '@/lib/utils';
 
 export function HomePanel() {
@@ -117,27 +118,43 @@ export function HomePanel() {
         );
       })()}
 
-      {/* 当前修行 */}
-      <Section title="当前修行" extra={
+      {/* 当前修行（旅行青蛙式场景卡：小修士此刻在做什么） */}
+      <Section title="此刻行踪" extra={
         act ? <ActionButton variant="ghost" className="!min-h-[36px] !px-3 text-xs" onClick={() => state.stopActivity()}>停止</ActionButton> : undefined
       }>
         {act ? (
           <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-11 h-11 shrink-0 rounded-full border border-emerald-700/40 bg-emerald-950/30 flex items-center justify-center">
-                <span className="text-2xl animate-float" aria-hidden>{act.icon}</span>
-              </div>
-              <div className="flex-1">
-                <div className="text-sm text-stone-200 font-medium">{act.name}</div>
-                <div className="text-[10px] text-stone-500">每轮 {act.intervalSec} 秒 · +{act.skillXp} 经验{act.reward.gold ? ` · +${Math.round((act.reward.gold ?? 0) * (1 + state.skills.begging.level * 0.06))} 金币` : ''}</div>
+            <div className="relative rounded-xl overflow-hidden border border-stone-800">
+              <img src={ACTIVITY_SCENE[act.id]?.img ?? HOME_SCENE.img} alt={act.name} className="w-full h-32 object-cover" />
+              <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+              <div className="absolute bottom-0 inset-x-0 px-3 py-2">
+                <div className="text-sm font-bold text-white drop-shadow">小修士正在「{act.name}」</div>
+                <div className="text-[10px] text-stone-300/90 mt-0.5">{ACTIVITY_SCENE[act.id]?.caption}</div>
               </div>
             </div>
-            <ProgressBar value={state.activityProgress} max={1} className="mt-2 h-2.5" barClass="bg-gradient-to-r from-emerald-600 to-emerald-400" showText />
+            <div className="flex items-center gap-2.5 mt-2.5">
+              <div className="w-9 h-9 shrink-0 rounded-full border border-emerald-700/40 bg-emerald-950/30 flex items-center justify-center">
+                <span className="text-xl animate-float" aria-hidden>{act.icon}</span>
+              </div>
+              <div className="flex-1">
+                <ProgressBar value={state.activityProgress} max={1} className="h-2.5" barClass="bg-gradient-to-r from-emerald-600 to-emerald-400" showText />
+                <div className="text-[10px] text-stone-500 mt-1">每轮 {act.intervalSec} 秒 · +{act.skillXp} 经验{act.reward.gold ? ` · +${Math.round((act.reward.gold ?? 0) * (1 + state.skills.begging.level * 0.06))} 金币` : ''}</div>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="text-center py-3">
-            <div className="text-xs text-stone-500 mb-2">尚未开始修行，去技能页选择一项活动吧</div>
-            <ActionButton className="!min-h-[40px]" onClick={() => state.setTab('skills')}>前往修炼</ActionButton>
+          <div>
+            <div className="relative rounded-xl overflow-hidden border border-stone-800">
+              <img src={HOME_SCENE.img} alt={HOME_SCENE.name} className="w-full h-32 object-cover" />
+              <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+              <div className="absolute bottom-0 inset-x-0 px-3 py-2">
+                <div className="text-sm font-bold text-white drop-shadow">小修士在「{HOME_SCENE.name}」歇息</div>
+                <div className="text-[10px] text-stone-300/90 mt-0.5">{HOME_SCENE.caption}</div>
+              </div>
+            </div>
+            <div className="text-center mt-2.5">
+              <ActionButton className="!min-h-[40px]" onClick={() => state.setTab('skills')}>出发修行</ActionButton>
+            </div>
           </div>
         )}
         <div className="text-[10px] text-stone-500 mt-2 flex justify-between">

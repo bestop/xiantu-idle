@@ -7,12 +7,14 @@ import { SKILL_MAP } from '@/lib/game/skills';
 import { SkillId } from '@/types/game';
 import { ActionButton, formatNum, formatDuration } from './ui-bits';
 import { QUALITY_TEXT } from '@/lib/game/items';
+import { REGION_SCENE, HOME_SCENE } from '@/lib/game/scenes';
 import { cn } from '@/lib/utils';
 import { MoonStar } from 'lucide-react';
 
 export function OfflineModal() {
   const report = useGameStore(s => s.pendingOfflineReport);
   const dismiss = useGameStore(s => s.dismissOfflineReport);
+  const lastRegionId = useGameStore(s => s.lastRegionId);
   if (!report) return null;
 
   const skillEntries = Object.entries(report.skillXp) as [SkillId, number][];
@@ -20,6 +22,7 @@ export function OfflineModal() {
     ...report.items,
     ...report.battleDrops,
   ];
+  const scene = REGION_SCENE[lastRegionId] ?? HOME_SCENE;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="离线收益">
@@ -34,6 +37,19 @@ export function OfflineModal() {
           <p className="text-[11px] text-stone-500 mt-1 tabular-nums">
             离线 {formatDuration(report.seconds)} · 收益效率 {(report.effiency * 100).toFixed(0)}%
           </p>
+        </div>
+
+        {/* 离开时的风景（旅行青蛙式明信片） */}
+        <div className="relative rounded-xl overflow-hidden border border-stone-800 mb-3">
+          <img src={scene.img} alt={scene.name} className="w-full h-24 object-cover" />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+          <div className="absolute bottom-0 inset-x-0 px-3 py-1.5 flex items-end justify-between">
+            <div>
+              <div className="text-[9px] text-amber-200/80 tracking-[0.25em]">离开时的风景</div>
+              <div className="text-xs font-bold text-white drop-shadow">{scene.name}</div>
+            </div>
+            <div className="text-[9px] text-stone-300/80 italic">「{scene.caption}」</div>
+          </div>
         </div>
 
         <div className="space-y-2.5 text-xs">

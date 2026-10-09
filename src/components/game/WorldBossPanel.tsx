@@ -6,6 +6,7 @@ import { useGameStore } from '@/store/game';
 import { computePlayerStats } from '@/lib/game/engine';
 import { WORLD_BOSSES, wbMaxHp, runWorldBossAttempt, WB_CHALLENGE_COOLDOWN_MS, WorldBossAttemptResult } from '@/lib/game/worldboss';
 import { QUALITY_TEXT } from '@/lib/game/items';
+import { BOSS_SCENE } from '@/lib/game/scenes';
 import { Section, ProgressBar, ActionButton, formatNum, QualityBadge } from './ui-bits';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, Swords } from 'lucide-react';
@@ -37,7 +38,13 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* BOSS 卡 */}
-      <div className="bg-gradient-to-br from-rose-950/60 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl p-4 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-rose-950/60 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl overflow-hidden relative">
+        {/* 场景横幅（旅行青蛙式） */}
+        <div className="relative h-28">
+          <img src={BOSS_SCENE.img} alt="世界 BOSS" className="w-full h-full object-cover" />
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/30 to-transparent" />
+        </div>
+        <div className="p-4 pt-1 relative">
         <div aria-hidden className="absolute -top-8 -left-8 w-36 h-36 rounded-full bg-rose-600/10 blur-2xl pointer-events-none" />
         <div className="flex items-start justify-between relative">
           <div className="flex items-center gap-3">
@@ -73,6 +80,7 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
             <div className="text-[9px] text-stone-500">累计击杀</div>
             <div className="text-xs text-rose-300 font-semibold tabular-nums">{store.stats.wbKills ?? 0}</div>
           </div>
+        </div>
         </div>
       </div>
 
