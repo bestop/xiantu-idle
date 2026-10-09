@@ -1,0 +1,940 @@
+     1→'use client';
+     2→
+     3→import { useState, useCallback, useEffect } from 'react';
+     4→import {
+     5→  Character,
+     6→  InventoryItem,
+     7→  BattleState,
+     8→  GameLogEntry,
+     9→  GameItem,
+    10→  Monster,
+    11→  MarketListing,
+    12→  PlayerPet
+    13→} from '@/types/game';
+    14→import {
+    15→  createNewCharacter,
+    16→  executeBattle,
+    17→  calculateDrops,
+    18→  addExperience,
+    19→  applyItem,
+    20→  equipItem,
+    21→  unequipItem,
+    22→  addToInventory,
+    23→  removeFromInventory,
+    24→  attemptTribulation,
+    25→  meditate,
+    26→  fullRestore,
+    27→  generateId,
+    28→  calculateStatsWithEquipment,
+    29→  upgradeSkill,
+    30→} from '@/lib/game/gameEngine';
+    31→import {
+    32→  SKILLS,
+    33→  getSamsaraRequirement,
+    34→  getSamsaraBonuses
+    35→} from '@/types/game';
+    36→import {
+    37→  saveCharacter,
+    38→  loadCharacter,
+    39→  saveInventory,
+    40→  loadInventory,
+    41→  saveLogs,
+    42→  loadLogs,
+    43→  saveMarket,
+    44→  loadMarket,
+    45→  getPlayerId,
+    46→  clearAllData,
+    47→} from '@/lib/game/storage';
+    48→import { getRecommendedMonster, getItemById, CraftingRecipe, getRandomEquipmentByQualityAndType } from '@/lib/game/gameData';
+    49→import {
+    50→  getPetById,
+    51→  createPlayerPet,
+    52→  levelUpPet as levelUpPetUtil,
+    53→  evolvePet as evolvePetUtil
+    54→} from '@/lib/game/petData';
+    55→
+    56→export type GameTab = 'battle' | 'cultivation' | 'tribulation' | 'inventory' | 'market' | 'map' | 'quest' | 'achievement' | 'dungeon' | 'daily' | 'pet' | 'petshop' | 'skill' | 'samsara';
+    57→
+    58→interface UseGameStateReturn {
+    59→  // 状态
+    60→  character: Character | null;
+    61→  inventory: InventoryItem[];
+    62→  battle: BattleState;
+    63→  logs: GameLogEntry[];
+    64→  market: MarketListing[];
+    65→  currentTab: GameTab;
+    66→  isLoading: boolean;
+    67→  playerId: string;
+    68→  
+    69→  // 操作
+    70→  initGame: (name: string) => void;
+    71→  resetGame: () => void;
+    72→  setTab: (tab: GameTab) => void;
+    73→  addLog: (type: GameLogEntry['type'], message: string) => void;
+    74→  setCharacter: (character: Character | ((prev: Character | null) => Character | null)) => void;
+    75→  setInventory: (inventory: InventoryItem[] | ((prev: InventoryItem[]) => InventoryItem[])) => void;
+    76→  
+    77→  // 战斗相关
+    78→  startBattle: (monster: Monster, isGodMode?: boolean) => void;
+    79→  quickBattle: (isGodMode?: boolean, monster?: Monster) => void;
+    80→  endBattle: () => void;
+    81→  mapEncounter: (monster: Monster, isGodMode?: boolean) => void;
+    82→  
+    83→  // 物品相关
+    84→  useItem: (item: GameItem, quantity?: number) => void;
+    85→  equip: (item: GameItem) => void;
+    86→  unequip: (slot: 'weapon' | 'armor' | 'accessory') => void;
+    87→  sellItem: (item: GameItem, price: number) => void;
+    88→  buyFromMarket: (listingId: string) => void;
+    89→  buyNpcItem: (item: GameItem, price: number) => void;
+    90→  craftItem: (recipe: CraftingRecipe) => void;
+    91→  
+    92→  // 其他操作
+    93→  doMeditate: () => void;
+    94→  doTribulation: () => { success: boolean; message: string };
+    95→  restore: () => void;
+    96→  
+    97→  // 宠物相关
+    98→  buyPet: (petId: string, price: number) => void;
+    99→  activatePet: (petId: string) => void;
+   100→  deactivatePet: (petId: string) => void;
+   101→  renamePet: (petId: string, nickname: string) => void;
+   102→  evolvePet: (petId: string) => void;
+   103→  levelUpPet: (petId: string, exp: number) => void;
+   104→  
+   105→  // 技能系统
+   106→  unlockSkill: (skillId: string) => void;
+   107→  useSkill: (skillId: string) => void;
+   108→  upgradeSkill: (skillId: string, levels?: number) => void;
+   109→  
+   110→  // 轮回系统
+   111→  doSamsara: () => void;
+   112→}
+   113→
+   114→// 惰性初始化函数
+   115→function getInitialState() {
+   116→  return {
+   117→    character: loadCharacter(),
+   118→    inventory: loadInventory(),
+   119→    logs: loadLogs(),
+   120→    market: loadMarket(),
+   121→    playerId: getPlayerId()
+   122→  };
+   123→}
+   124→
+   125→export function useGameState(): UseGameStateReturn {
+   126→  const [character, setCharacter] = useState<Character | null>(null);
+   127→  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+   128→  const [battle, setBattle] = useState<BattleState>({
+   129→    inBattle: false,
+   130→    monster: null,
+   131→    playerHp: 0,
+   132→    monsterHp: 0,
+   133→    battleLog: [],
+   134→    isAuto: false,
+   135→    result: null
+   136→  });
+   137→  const [logs, setLogs] = useState<GameLogEntry[]>([]);
+   138→  const [market, setMarket] = useState<MarketListing[]>([]);
+   139→  const [currentTab, setCurrentTab] = useState<GameTab>('battle');
+   140→  const [isLoading, setIsLoading] = useState(true);
+   141→  const [playerId, setPlayerId] = useState<string>('');
+   142→  const [isInitialized, setIsInitialized] = useState(false);
+   143→
+   144→  // 客户端挂载后初始化数据 - 使用回调形式避免同步setState警告
+   145→  useEffect(() => {
+   146→    // 使用函数式更新，React会正确处理
+   147→    const loadGameData = () => {
+   148→      const initialState = getInitialState();
+   149→      setCharacter(initialState.character);
+   150→      setInventory(initialState.inventory);
+   151→      setLogs(initialState.logs);
+   152→      setMarket(initialState.market);
+   153→      setPlayerId(initialState.playerId);
+   154→      setIsLoading(false);
+   155→      setIsInitialized(true);
+   156→    };
+   157→    
+   158→    // 使用 setTimeout 0 确保在渲染完成后执行
+   159→    const timer = setTimeout(loadGameData, 0);
+   160→    return () => clearTimeout(timer);
+   161→  }, []);
+   162→
+   163→  // 自动保存 - 只在初始化完成后保存
+   164→  useEffect(() => {
+   165→    if (isInitialized && character) {
+   166→      saveCharacter(character);
+   167→    }
+   168→  }, [character, isInitialized]);
+   169→
+   170→  useEffect(() => {
+   171→    if (isInitialized) {
+   172→      saveInventory(inventory);
+   173→    }
+   174→  }, [inventory, isInitialized]);
+   175→
+   176→  useEffect(() => {
+   177→    if (isInitialized) {
+   178→      saveLogs(logs);
+   179→    }
+   180→  }, [logs, isInitialized]);
+   181→
+   182→  useEffect(() => {
+   183→    if (isInitialized) {
+   184→      saveMarket(market);
+   185→    }
+   186→  }, [market, isInitialized]);
+   187→
+   188→  // 添加日志
+   189→  const addLog = useCallback((type: GameLogEntry['type'], message: string) => {
+   190→    const newLog: GameLogEntry = {
+   191→      id: generateId(),
+   192→      timestamp: Date.now(),
+   193→      type,
+   194→      message
+   195→    };
+   196→    setLogs(prev => [...prev.slice(-99), newLog]);
+   197→  }, []);
+   198→
+   199→  // 初始化游戏
+   200→  const initGame = useCallback((name: string) => {
+   201→    const newCharacter = createNewCharacter(name);
+   202→    setCharacter(newCharacter);
+   203→    setInventory([]);
+   204→    setLogs([]);
+   205→    addLog('system', `${name}踏上了修仙之路...`);
+   206→  }, [addLog]);
+   207→
+   208→  // 重置游戏
+   209→  const resetGame = useCallback(() => {
+   210→    clearAllData();
+   211→    setCharacter(null);
+   212→    setInventory([]);
+   213→    setLogs([]);
+   214→    setMarket([]);
+   215→    setBattle({
+   216→      inBattle: false,
+   217→      monster: null,
+   218→      playerHp: 0,
+   219→      monsterHp: 0,
+   220→      battleLog: [],
+   221→      isAuto: false,
+   222→      result: null
+   223→    });
+   224→    setPlayerId(getPlayerId());
+   225→  }, []);
+   226→
+   227→  // 设置标签页
+   228→  const setTab = useCallback((tab: GameTab) => {
+   229→    setCurrentTab(tab);
+   230→  }, []);
+   231→
+   232→  // 开始战斗
+   233→  const startBattle = useCallback((monster: Monster) => {
+   234→    if (!character) return;
+   235→    
+   236→    setBattle({
+   237→      inBattle: true,
+   238→      monster,
+   239→      playerHp: character.stats.hp,
+   240→      monsterHp: monster.hp,
+   241→      battleLog: [],
+   242→      isAuto: false,
+   243→      result: null
+   244→    });
+   245→    
+   246→    addLog('battle', `开始与${monster.name}战斗！`);
+   247→  }, [character, addLog]);
+   248→
+   249→  // 快速战斗
+   250→  const quickBattle = useCallback((isGodMode: boolean = false, monster?: Monster) => {
+   251→    if (!character || battle.inBattle) return;
+   252→    
+   253→    const targetMonster = monster || getRecommendedMonster(character.realm, character.level);
+   254→    if (!targetMonster) return;
+   255→    
+   256→    // 执行战斗
+   257→    const { logs: battleLogs, result, finalHp } = executeBattle(character, targetMonster, isGodMode);
+   258→    
+   259→    // 更新角色状态
+   260→    let updatedCharacter = { ...character };
+   261→    updatedCharacter.stats.hp = finalHp;
+   262→    
+   263→    // 处理战斗结果
+   264→    if (result === 'win') {
+   265→      // 获得经验和金币
+   266→      const expResult = addExperience(updatedCharacter, targetMonster.exp);
+   267→      updatedCharacter = expResult.character;
+   268→      updatedCharacter.gold += targetMonster.gold;
+   269→      
+   270→      // 获得掉落物
+   271→      const drops = calculateDrops(targetMonster);
+   272→      let newInventory = [...inventory];
+   273→      drops.forEach(item => {
+   274→        newInventory = addToInventory(newInventory, item, 1);
+   275→        addLog('item', `获得了${item.name}！`);
+   276→      });
+   277→      setInventory(newInventory);
+   278→      
+   279→      addLog('battle', `击败了${targetMonster.name}，获得${targetMonster.exp}经验和${targetMonster.gold}金币`);
+   280→      
+   281→      if (expResult.leveledUp) {
+   282→        addLog('level_up', `恭喜！升级到了${updatedCharacter.realm}${expResult.newLevel}层！`);
+   283→      }
+   284→      
+   285→      // 更新宠物战斗次数、经验和忠诚度
+   286→      if (updatedCharacter.pets && updatedCharacter.pets.length > 0) {
+   287→        updatedCharacter.pets = updatedCharacter.pets.map(pet => {
+   288→          if (pet.isActive) {
+   289→            const petExpGain = Math.floor(targetMonster.exp * 0.3);
+   290→            const loyaltyGain = 1;
+   291→            const updatedPet = { ...pet.pet };
+   292→            updatedPet.exp += petExpGain;
+   293→            updatedPet.loyalty = Math.min(100, updatedPet.loyalty + loyaltyGain);
+   294→            
+   295→            // 检查宠物升级
+   296→            while (updatedPet.exp >= updatedPet.maxExp) {
+   297→              const leveledPet = levelUpPetUtil(updatedPet);
+   298→              updatedPet.level = leveledPet.level;
+   299→              updatedPet.exp = leveledPet.exp;
+   300→              updatedPet.maxExp = leveledPet.maxExp;
+   301→              updatedPet.stats = leveledPet.stats;
+   302→              addLog('pet', `宠物 ${updatedPet.name} 升级了！`);
+   303→            }
+   304→            
+   305→            return {
+   306→              ...pet,
+   307→              pet: updatedPet,
+   308→              battleCount: (pet.battleCount || 0) + 1,
+   309→              winCount: (pet.winCount || 0) + 1
+   310→            };
+   311→          }
+   312→          return pet;
+   313→        });
+   314→      }
+   315→    } else {
+   316→      addLog('battle', `被${targetMonster.name}击败了...`);
+   317→      
+   318→      // 更新宠物战斗次数（失败也计入）
+   319→      if (updatedCharacter.pets && updatedCharacter.pets.length > 0) {
+   320→        updatedCharacter.pets = updatedCharacter.pets.map(pet => {
+   321→          if (pet.isActive) {
+   322→            return {
+   323→              ...pet,
+   324→              battleCount: (pet.battleCount || 0) + 1
+   325→            };
+   326→          }
+   327→          return pet;
+   328→        });
+   329→      }
+   330→    }
+   331→    
+   332→    // 更新血量
+   333→    const stats = calculateStatsWithEquipment(updatedCharacter);
+   334→    updatedCharacter.stats = { ...updatedCharacter.stats, maxHp: stats.maxHp, maxMp: stats.maxMp };
+   335→    
+   336→    setCharacter(updatedCharacter);
+   337→    setBattle({
+   338→      inBattle: false,
+   339→      monster: targetMonster,
+   340→      playerHp: finalHp,
+   341→      monsterHp: 0,
+   342→      battleLog: battleLogs,
+   343→      isAuto: false,
+   344→      result
+   345→    });
+   346→  }, [character, battle.inBattle, inventory, addLog]);
+   347→
+   348→  // 地图遇怪战斗
+   349→  const mapEncounter = useCallback((monster: Monster, isGodMode: boolean = false) => {
+   350→    if (!character) return;
+   351→    
+   352→    // 执行战斗
+   353→    const { logs: battleLogs, result, finalHp } = executeBattle(character, monster, isGodMode);
+   354→    
+   355→    // 更新角色状态
+   356→    let updatedCharacter = { ...character };
+   357→    updatedCharacter.stats.hp = finalHp;
+   358→    
+   359→    // 处理战斗结果
+   360→    if (result === 'win') {
+   361→      // 获得经验和金币（地图怪物奖励+20%）
+   362→      const bonusExp = Math.floor(monster.exp * 1.2);
+   363→      const bonusGold = Math.floor(monster.gold * 1.2);
+   364→      
+   365→      const expResult = addExperience(updatedCharacter, bonusExp);
+   366→      updatedCharacter = expResult.character;
+   367→      updatedCharacter.gold += bonusGold;
+   368→      
+   369→      // 获得掉落物
+   370→      const drops = calculateDrops(monster);
+   371→      let newInventory = [...inventory];
+   372→      drops.forEach(item => {
+   373→        newInventory = addToInventory(newInventory, item, 1);
+   374→        addLog('item', `获得了${item.name}！`);
+   375→      });
+   376→      setInventory(newInventory);
+   377→      
+   378→      addLog('battle', `击败了${monster.name}，获得${bonusExp}经验和${bonusGold}金币（地图奖励+20%）`);
+   379→      
+   380→      if (expResult.leveledUp) {
+   381→        addLog('level_up', `恭喜！升级到了${updatedCharacter.realm}${expResult.newLevel}层！`);
+   382→      }
+   383→      
+   384→      // 更新宠物战斗次数、经验和忠诚度
+   385→      if (updatedCharacter.pets && updatedCharacter.pets.length > 0) {
+   386→        const bonusExp = Math.floor(monster.exp * 1.2);
+   387→        updatedCharacter.pets = updatedCharacter.pets.map(pet => {
+   388→          if (pet.isActive) {
+   389→            const petExpGain = Math.floor(bonusExp * 0.3);
+   390→            const loyaltyGain = 1;
+   391→            const updatedPet = { ...pet.pet };
+   392→            updatedPet.exp += petExpGain;
+   393→            updatedPet.loyalty = Math.min(100, updatedPet.loyalty + loyaltyGain);
+   394→            
+   395→            // 检查宠物升级
+   396→            while (updatedPet.exp >= updatedPet.maxExp) {
+   397→              const leveledPet = levelUpPetUtil(updatedPet);
+   398→              updatedPet.level = leveledPet.level;
+   399→              updatedPet.exp = leveledPet.exp;
+   400→              updatedPet.maxExp = leveledPet.maxExp;
+   401→              updatedPet.stats = leveledPet.stats;
+   402→              addLog('pet', `宠物 ${updatedPet.name} 升级了！`);
+   403→            }
+   404→            
+   405→            return {
+   406→              ...pet,
+   407→              pet: updatedPet,
+   408→              battleCount: (pet.battleCount || 0) + 1,
+   409→              winCount: (pet.winCount || 0) + 1
+   410→            };
+   411→          }
+   412→          return pet;
+   413→        });
+   414→      }
+   415→    } else {
+   416→      addLog('battle', `被${monster.name}击败了...`);
+   417→      
+   418→      // 更新宠物战斗次数（失败也计入）
+   419→      if (updatedCharacter.pets && updatedCharacter.pets.length > 0) {
+   420→        updatedCharacter.pets = updatedCharacter.pets.map(pet => {
+   421→          if (pet.isActive) {
+   422→            return {
+   423→              ...pet,
+   424→              battleCount: (pet.battleCount || 0) + 1
+   425→            };
+   426→          }
+   427→          return pet;
+   428→        });
+   429→      }
+   430→    }
+   431→    
+   432→    // 更新血量
+   433→    const stats = calculateStatsWithEquipment(updatedCharacter);
+   434→    updatedCharacter.stats = { ...updatedCharacter.stats, maxHp: stats.maxHp, maxMp: stats.maxMp };
+   435→    
+   436→    setCharacter(updatedCharacter);
+   437→    setBattle({
+   438→      inBattle: false,
+   439→      monster,
+   440→      playerHp: finalHp,
+   441→      monsterHp: 0,
+   442→      battleLog: battleLogs,
+   443→      isAuto: false,
+   444→      result
+   445→    });
+   446→  }, [character, inventory, addLog]);
+   447→
+   448→  // 从NPC商店购买物品
+   449→  const buyNpcItem = useCallback((item: GameItem, price: number) => {
+   450→    if (!character || character.gold < price) return;
+   451→    
+   452→    // 扣除金币
+   453→    const updatedCharacter = {
+   454→      ...character,
+   455→      gold: character.gold - price
+   456→    };
+   457→    
+   458→    // 添加物品到背包
+   459→    const newInventory = addToInventory(inventory, item, 1);
+   460→    
+   461→    setCharacter(updatedCharacter);
+   462→    setInventory(newInventory);
+   463→    addLog('market', `从NPC商店购买了${item.name}，花费${price}金币`);
+   464→  }, [character, inventory, addLog]);
+   465→
+   466→  // 结束战斗
+   467→  const endBattle = useCallback(() => {
+   468→    setBattle({
+   469→      inBattle: false,
+   470→      monster: null,
+   471→      playerHp: 0,
+   472→      monsterHp: 0,
+   473→      battleLog: [],
+   474→      isAuto: false,
+   475→      result: null
+   476→    });
+   477→  }, []);
+   478→
+   479→  // 使用物品
+   480→  const useItem = useCallback((item: GameItem, quantity: number = 1) => {
+   481→    if (!character) return;
+   482→    
+   483→    const { character: updatedCharacter, inventory: updatedInventory, message } = applyItem(character, item, inventory, quantity);
+   484→    setCharacter(updatedCharacter);
+   485→    setInventory(updatedInventory);
+   486→    addLog('item', message);
+   487→  }, [character, inventory, addLog]);
+   488→
+   489→  // 装备物品
+   490→  const equip = useCallback((item: GameItem) => {
+   491→    if (!character || item.type !== 'equipment') return;
+   492→    
+   493→    const equipment = item as any;
+   494→    const result = equipItem(character, equipment);
+   495→    addLog('item', result.message);
+   496→    
+   497→    if (!result.success) {
+   498→      return;
+   499→    }
+   500→    
+   501→    // 更新角色状态
+   502→    setCharacter(result.character);
+   503→    
+   504→    // 更新背包
+   505→    let newInventory = [...inventory];
+   506→    
+   507→    // 从背包移除新装备
+   508→    newInventory = removeFromInventory(newInventory, item.id, 1);
+   509→    
+   510→    // 将旧装备放回背包
+   511→    if (result.oldEquipment) {
+   512→      newInventory = addToInventory(newInventory, result.oldEquipment, 1);
+   513→    }
+   514→    
+   515→    setInventory(newInventory);
+   516→  }, [character, inventory, addLog]);
+   517→
+   518→  // 卸下装备
+   519→  const unequip = useCallback((slot: 'weapon' | 'armor' | 'accessory') => {
+   520→    if (!character) return;
+   521→    
+   522→    const equipment = character.equipment[slot];
+   523→    if (equipment) {
+   524→      setCharacter(prev => {
+   525→        if (!prev) return prev;
+   526→        const newEquipment = unequipItem(prev, slot);
+   527→        const stats = calculateStatsWithEquipment(prev);
+   528→        return { ...prev, stats };
+   529→      });
+   530→      
+   531→      // 添加到背包
+   532→      setInventory(prev => addToInventory(prev, equipment, 1));
+   533→      addLog('item', `卸下了${equipment.name}`);
+   534→    }
+   535→  }, [character, addLog]);
+   536→
+   537→  // 出售物品到市场
+   538→  const sellItem = useCallback((item: GameItem, price: number) => {
+   539→    if (!character) return;
+   540→    
+   541→    // 从背包移除
+   542→    setInventory(prev => removeFromInventory(prev, item.id, 1));
+   543→    
+   544→    // 添加到市场
+   545→    const listing: MarketListing = {
+   546→      id: generateId(),
+   547→      sellerId: playerId,
+   548→      sellerName: character.name,
+   549→      item,
+   550→      price,
+   551→      listedAt: Date.now()
+   552→    };
+   553→    
+   554→    setMarket(prev => [...prev, listing]);
+   555→    addLog('market', `将${item.name}以${price}金币上架出售`);
+   556→  }, [character, playerId, addLog]);
+   557→
+   558→  // 从市场购买
+   559→  const buyFromMarket = useCallback((listingId: string) => {
+   560→    if (!character) return;
+   561→    
+   562→    const listing = market.find(l => l.id === listingId);
+   563→    if (!listing) return;
+   564→    
+   565→    if (character.gold < listing.price) {
+   566→      addLog('market', '金币不足！');
+   567→      return;
+   568→    }
+   569→    
+   570→    // 扣除金币
+   571→    setCharacter(prev => {
+   572→      if (!prev) return prev;
+   573→      return { ...prev, gold: prev.gold - listing.price };
+   574→    });
+   575→    
+   576→    // 添加物品
+   577→    setInventory(prev => addToInventory(prev, listing.item, 1));
+   578→    
+   579→    // 从市场移除
+   580→    setMarket(prev => prev.filter(l => l.id !== listingId));
+   581→    
+   582→    addLog('market', `以${listing.price}金币购买了${listing.item.name}`);
+   583→  }, [character, market, addLog]);
+   584→
+   585→  // 修炼
+   586→  const doMeditate = useCallback(() => {
+   587→    if (!character) return;
+   588→    
+   589→    const { character: updatedCharacter, message } = meditate(character);
+   590→    setCharacter(updatedCharacter);
+   591→    addLog('system', message);
+   592→  }, [character, addLog]);
+   593→
+   594→  // 渡劫
+   595→  const doTribulation = useCallback(() => {
+   596→    if (!character) return { success: false, message: '角色不存在' };
+   597→    
+   598→    const { success, message, character: updatedCharacter } = attemptTribulation(character);
+   599→    setCharacter(updatedCharacter);
+   600→    addLog('tribulation', message);
+   601→    
+   602→    if (success) {
+   603→      // 更新属性
+   604→      const stats = calculateStatsWithEquipment(updatedCharacter);
+   605→      setCharacter(prev => prev ? { ...prev, stats } : prev);
+   606→    }
+   607→    
+   608→    return { success, message };
+   609→  }, [character, addLog]);
+   610→
+   611→  // 使用回血丹恢复
+   612→  const restore = useCallback(() => {
+   613→    if (!character) return;
+   614→    
+   615→    // 找到背包中的回血丹，按效果值排序，选择效果最好的
+   616→    const hpPills = inventory
+   617→      .filter(i => i.item.type === 'pill' && (i.item as any).effect === 'hp')
+   618→      .sort((a, b) => ((b.item as any).value || 0) - ((a.item as any).value || 0));
+   619→    
+   620→    if (hpPills.length === 0) {
+   621→      addLog('item', '没有回血丹了！打怪可获得回血丹');
+   622→      return;
+   623→    }
+   624→    
+   625→    const bestPill = hpPills[0];
+   626→    const healValue = (bestPill.item as any).value;
+   627→    
+   628→    // 使用丹药
+   629→    const newHp = Math.min(character.stats.maxHp, character.stats.hp + healValue);
+   630→    const actualHeal = newHp - character.stats.hp;
+   631→    
+   632→    setCharacter(prev => prev ? {
+   633→      ...prev,
+   634→      stats: { ...prev.stats, hp: newHp }
+   635→    } : prev);
+   636→    
+   637→    // 减少丹药数量
+   638→    setInventory(prev => removeFromInventory(prev, bestPill.item.id, 1));
+   639→    
+   640→    addLog('item', `使用${bestPill.item.name}恢复了${actualHeal}点气血`);
+   641→  }, [character, inventory, addLog]);
+   642→
+   643→  // 宠物相关方法
+   644→  const buyPet = useCallback((petId: string, price: number) => {
+   645→    if (!character) return;
+   646→    
+   647→    const petData = getPetById(petId);
+   648→    if (!petData) return;
+   649→    
+   650→    if (character.gold < price) {
+   651→      addLog('pet', '金币不足，无法购买宠物！');
+   652→      return;
+   653→    }
+   654→    
+   655→    const newPet = createPlayerPet(petData);
+   656→    const updatedCharacter = {
+   657→      ...character,
+   658→      gold: character.gold - price,
+   659→      pets: [...(character.pets || []), newPet]
+   660→    };
+   661→    
+   662→    setCharacter(updatedCharacter);
+   663→    addLog('pet', `购买了宠物：${petData.name}`);
+   664→  }, [character, addLog]);
+   665→
+   666→  const activatePet = useCallback((petId: string) => {
+   667→    if (!character) return;
+   668→    
+   669→    const updatedPets = (character.pets || []).map(pet => ({
+   670→      ...pet,
+   671→      isActive: pet.pet.id === petId
+   672→    }));
+   673→    
+   674→    const updatedCharacter = {
+   675→      ...character,
+   676→      pets: updatedPets
+   677→    };
+   678→    
+   679→    setCharacter(updatedCharacter);
+   680→    addLog('pet', `宠物 ${updatedPets.find(p => p.pet.id === petId)?.pet.name} 已出战！`);
+   681→  }, [character, addLog]);
+   682→
+   683→  const deactivatePet = useCallback((petId: string) => {
+   684→    if (!character) return;
+   685→    
+   686→    const updatedPets = (character.pets || []).map(pet => ({
+   687→      ...pet,
+   688→      isActive: false
+   689→    }));
+   690→    
+   691→    const updatedCharacter = {
+   692→      ...character,
+   693→      pets: updatedPets
+   694→    };
+   695→    
+   696→    setCharacter(updatedCharacter);
+   697→    addLog('pet', '宠物已休息');
+   698→  }, [character, addLog]);
+   699→
+   700→  const renamePet = useCallback((petId: string, nickname: string) => {
+   701→    if (!character) return;
+   702→    
+   703→    const updatedPets = (character.pets || []).map(pet => {
+   704→      if (pet.pet.id === petId) {
+   705→        return {
+   706→          ...pet,
+   707→          nickname
+   708→        };
+   709→      }
+   710→      return pet;
+   711→    });
+   712→    
+   713→    const updatedCharacter = {
+   714→      ...character,
+   715→      pets: updatedPets
+   716→    };
+   717→    
+   718→    setCharacter(updatedCharacter);
+   719→    addLog('pet', `宠物已重命名为：${nickname}`);
+   720→  }, [character, addLog]);
+   721→
+   722→  const evolvePet = useCallback((petId: string) => {
+   723→    if (!character) return;
+   724→    
+   725→    const petIndex = (character.pets || []).findIndex(p => p.pet.id === petId);
+   726→    if (petIndex === -1) return;
+   727→    
+   728→    const pet = (character.pets || [])[petIndex];
+   729→    const evolvedPet = evolvePetUtil(pet.pet);
+   730→    
+   731→    if (!evolvedPet) {
+   732→      addLog('pet', '宠物无法进化');
+   733→      return;
+   734→    }
+   735→    
+   736→    const updatedPets = [...(character.pets || [])];
+   737→    updatedPets[petIndex] = {
+   738→      ...pet,
+   739→      pet: evolvedPet
+   740→    };
+   741→    
+   742→    const updatedCharacter = {
+   743→      ...character,
+   744→      pets: updatedPets
+   745→    };
+   746→    
+   747→    setCharacter(updatedCharacter);
+   748→    addLog('pet', `宠物进化为：${evolvedPet.name}`);
+   749→  }, [character, addLog]);
+   750→
+   751→  const levelUpPet = useCallback((petId: string, exp: number) => {
+   752→    if (!character) return;
+   753→    
+   754→    const petIndex = (character.pets || []).findIndex(p => p.pet.id === petId);
+   755→    if (petIndex === -1) return;
+   756→    
+   757→    const pet = (character.pets || [])[petIndex];
+   758→    let updatedPet = { ...pet.pet };
+   759→    
+   760→    updatedPet.exp += exp;
+   761→    
+   762→    // 检查升级
+   763→    while (updatedPet.exp >= updatedPet.maxExp) {
+   764→      updatedPet = levelUpPetUtil(updatedPet);
+   765→      addLog('pet', `宠物 ${updatedPet.name} 升级了！`);
+   766→    }
+   767→    
+   768→    const updatedPets = [...(character.pets || [])];
+   769→    updatedPets[petIndex] = {
+   770→      ...pet,
+   771→      pet: updatedPet
+   772→    };
+   773→    
+   774→    const updatedCharacter = {
+   775→      ...character,
+   776→      pets: updatedPets
+   777→    };
+   778→    
+   779→    setCharacter(updatedCharacter);
+   780→  }, [character, addLog]);
+   781→  
+   782→  // 解锁技能
+   783→  const unlockSkill = useCallback((skillId: string) => {
+   784→    if (!character) return;
+   785→    
+   786→    const skill = SKILLS.find(s => s.id === skillId);
+   787→    if (!skill) return;
+   788→    
+   789→    let updatedSkills = [...(character.skills || [])];
+   790→    
+   791→    // 检查技能是否已存在
+   792→    const skillIndex = updatedSkills.findIndex(s => s.skillId === skillId);
+   793→    
+   794→    if (skillIndex >= 0) {
+   795→      // 更新现有技能
+   796→      updatedSkills[skillIndex] = {
+   797→        ...updatedSkills[skillIndex],
+   798→        unlocked: true
+   799→      };
+   800→    } else {
+   801→      // 添加新技能（处理旧存档）
+   802→      updatedSkills.push({
+   803→        skillId: skillId,
+   804→        level: 1,
+   805→        unlocked: true,
+   806→        currentCooldown: 0
+   807→      });
+   808→    }
+   809→    
+   810→    const updatedCharacter = {
+   811→      ...character,
+   812→      skills: updatedSkills
+   813→    };
+   814→    
+   815→    setCharacter(updatedCharacter);
+   816→    addLog('system', `解锁了技能：${skill.name}！`);
+   817→  }, [character, addLog]);
+   818→  
+   819→  // 使用技能
+   820→  const useSkill = useCallback((skillId: string) => {
+   821→    if (!character) return;
+   822→    
+   823→    const skill = SKILLS.find(s => s.id === skillId);
+   824→    if (!skill) return;
+   825→    
+   826→    addLog('system', `使用了技能：${skill.name}`);
+   827→  }, [character, addLog]);
+   828→  
+   829→  // 升级技能
+   830→  const upgradeSkillHandler = useCallback((skillId: string, levels: number = 1) => {
+   831→    if (!character) return;
+   832→    
+   833→    const result = upgradeSkill(character, skillId, levels);
+   834→    setCharacter(result.character);
+   835→    addLog('system', result.message);
+   836→  }, [character, addLog]);
+   837→  
+   838→  // 炼制装备
+   839→  const craftItem = useCallback((recipe: CraftingRecipe) => {
+   840→    if (!character) return;
+   841→    
+   842→    // 检查是否有足够的材料
+   843→    const materialInInventory = inventory.find(i => i.item.id === recipe.requiredMaterialId);
+   844→    if (!materialInInventory || materialInInventory.quantity < recipe.materialCount) {
+   845→      addLog('item', '材料不足，无法炼制！');
+   846→      return;
+   847→    }
+   848→    
+   849→    // 扣除材料
+   850→    let newInventory = removeFromInventory(inventory, recipe.requiredMaterialId, recipe.materialCount);
+   851→    
+   852→    // 随机获取一件对应品质和类型的装备
+   853→    const equipment = getRandomEquipmentByQualityAndType(
+   854→      recipe.targetQuality,
+   855→      recipe.equipmentType,
+   856→      character.realm
+   857→    );
+   858→    
+   859→    if (!equipment) {
+   860→      addLog('item', '炼制失败！');
+   861→      return;
+   862→    }
+   863→    
+   864→    // 添加装备到背包
+   865→    newInventory = addToInventory(newInventory, equipment, 1);
+   866→    
+   867→    setInventory(newInventory);
+   868→    addLog('item', `成功炼制了${equipment.name}！`);
+   869→  }, [character, inventory, addLog]);
+   870→
+   871→  // 执行轮回
+   872→  const doSamsara = useCallback(() => {
+   873→    if (!character) return;
+   874→    
+   875→    const currentCycle = character.samsara?.currentCycle || 0;
+   876→    const nextCycle = currentCycle + 1;
+   877→    
+   878→    // 重置角色，但保留轮回加成
+   879→    const newCharacter = createNewCharacter(character.name);
+   880→    
+   881→    // 设置新的轮回状态
+   882→    newCharacter.samsara = {
+   883→      currentCycle: nextCycle,
+   884→      totalCycles: (character.samsara?.totalCycles || 0) + 1,
+   885→      cycleBonuses: getSamsaraBonuses(nextCycle),
+   886→      cycleRequirements: {
+   887→        exp: getSamsaraRequirement(nextCycle)
+   888→      },
+   889→      canSamsara: false
+   890→    };
+   891→    
+   892→    // 保持总累计经验为0（重新开始）
+   893→    newCharacter.totalExp = 0;
+   894→    
+   895→    setCharacter(newCharacter);
+   896→    addLog('system', `🎊 恭喜！完成第 ${nextCycle} 次轮回！获得永久属性加成！`);
+   897→  }, [character, addLog]);
+   898→
+   899→  return {
+   900→    character,
+   901→    inventory,
+   902→    battle,
+   903→    logs,
+   904→    market,
+   905→    currentTab,
+   906→    isLoading,
+   907→    playerId,
+   908→    initGame,
+   909→    resetGame,
+   910→    setTab,
+   911→    addLog,
+   912→    setCharacter,
+   913→    setInventory,
+   914→    startBattle,
+   915→    quickBattle,
+   916→    mapEncounter,
+   917→    endBattle,
+   918→    useItem,
+   919→    equip,
+   920→    unequip,
+   921→    sellItem,
+   922→    buyFromMarket,
+   923→    buyNpcItem,
+   924→    craftItem,
+   925→    doMeditate,
+   926→    doTribulation,
+   927→    restore,
+   928→    buyPet,
+   929→    activatePet,
+   930→    deactivatePet,
+   931→    renamePet,
+   932→    evolvePet,
+   933→    levelUpPet,
+   934→    unlockSkill,
+   935→    useSkill,
+   936→    upgradeSkill: upgradeSkillHandler,
+   937→    doSamsara
+   938→  };
+   939→}
+   940→
