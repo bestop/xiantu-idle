@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   GameState, SkillId, ActivityId, TabId, BattleRewards, EquipSlot,
-  Equipment, OfflineReport, InvItem, AchievementState,
+  Equipment, OfflineReport, InvItem, AchievementState, MoreViewId,
 } from '@/types/game';
 import { ACTIVITY_MAP, xpToNext, gatherTier } from '@/lib/game/skills';
 import {
@@ -18,6 +18,8 @@ import {
 import { getItem, generateEquipment, genUid, CRAFT_RECIPES, rollQuality } from '@/lib/game/items';
 import { MONSTER_MAP } from '@/lib/game/monsters';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
+import { MAX_PETS, makePet, grantPetXp, releaseGold } from '@/lib/game/pets';
+import { initialWorldBoss, checkRotate, WorldBossAttemptResult } from '@/lib/game/worldboss';
 
 const emptySkills = (): Record<SkillId, { level: number; xp: number }> => {
   const ids: SkillId[] = [
@@ -32,6 +34,7 @@ const initialStats = () => ({
   totalBattles: 0, totalWins: 0, totalKills: 0, bossKills: 0,
   totalGoldEarned: 0, totalExpEarned: 0, totalDrops: 0,
   offlineSessions: 0, playStart: Date.now(),
+  petsCaptured: 0, wbKills: 0, wbBestDamage: 0,
 });
 
 const initialState: GameState = {
@@ -54,6 +57,10 @@ const initialState: GameState = {
   buffExpireAt: 0,
   achievements: {},
   stats: initialStats(),
+  pets: [],
+  activePetUid: null,
+  worldBoss: initialWorldBoss(),
+  moreView: 'root',
   pendingOfflineReport: null,
 };
 
@@ -97,6 +104,16 @@ export interface GameStore extends GameState {
   checkAchievements: () => void;
   claimAchievement: (id: string) => void;
 
+  // 灵宠
+  setActivePet: (uid: string | null) => void;
+  releasePet: (uid: string) => void;
+
+  // 世界 BOSS
+  applyWorldBossResult: (r: WorldBossAttemptResult) => void;
+
+  // 更多面板子视图
+  setMoreView: (v: MoreViewId) => void;
+
   // 离线
   settleOffline: () => void;
   dismissOfflineReport: () => void;
@@ -131,7 +148,11 @@ export const useGameStore = create<GameStore>()(
       toastSeq: 0,
 
       markHydrated: () => {
-        set({ hydrated: true });
+        // 旧存档兼容：补齐 v2 新增字段
+        const s = get();
+        const stats = { ...initialStats(), ...s.stats };
+        const worldBoss = s.worldBoss ? checkRotate(s.worldBoss, Date.now()) : initialWorldBoss();
+        set({ hydrated: true, stats, worldBoss, pets: s.pets ?? [] });
         get().settleOffline();
       },
 
@@ -140,6 +161,7 @@ export const useGameStore = create<GameStore>()(
           ...initialState,
           stats: { ...initialStats(), playStart: Date.now() },
           lastTick: Date.now(),
+          worldBoss: initialWorldBoss(),
           initialized: true,
           playerName: name || '无名散修',
         });
@@ -241,6 +263,20 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
+        // 出战灵宠获得经验
+        let pets = state.pets;
+        if (won && state.activePetUid) {
+          const idx = pets.findIndex(p => p.uid === state.activePetUid);
+          if (idx >= 0) {
+            const { pet, levelsGained } = grantPetXp(pets[idx], rewards.exp * 1.2);
+            pets = [...pets];
+            pets[idx] = pet;
+            if (levelsGained > 0) {
+              get().showToast(`🐾 ${monster.name} 升至 ${pet.level} 级！`);
+            }
+          }
+        }
+
         // 物品入包
         let inventory = state.inventory;
         const equips = { ...state.equips };
@@ -261,6 +297,19 @@ export const useGameStore = create<GameStore>()(
           drops += 1;
         }
 
+        // 灵宠捕获
+        let petsCaptured = 0;
+        if (won && rewards.petCapture) {
+          if (pets.length < MAX_PETS) {
+            const pet = makePet(rewards.petCapture);
+            pets = [...pets, pet];
+            petsCaptured = 1;
+            get().showToast(`🥚 妖兽 ${monster.name} 被你感动，自愿随你修行！（灵宠 +1）`);
+          } else {
+            get().showToast('灵宠栏已满，未能收服该妖兽');
+          }
+        }
+
         const gold = state.gold + (won ? rewards.gold : 0) + rewards.gems * 0;
         const stats = {
           ...state.stats,
@@ -271,9 +320,10 @@ export const useGameStore = create<GameStore>()(
           totalGoldEarned: state.stats.totalGoldEarned + (won ? rewards.gold : 0),
           totalExpEarned: state.stats.totalExpEarned + (won ? rewards.exp : 0),
           totalDrops: state.stats.totalDrops + drops,
+          petsCaptured: (state.stats.petsCaptured ?? 0) + petsCaptured,
         };
 
-        set({ skills, gems, inventory, equips, cards, gold, stats });
+        set({ skills, gems, inventory, equips, cards, gold, stats, pets });
         get().checkAchievements();
       },
 
@@ -509,6 +559,59 @@ export const useGameStore = create<GameStore>()(
         });
         get().showToast(`🏆 领取成就奖励 +${def.gemReward}💎`);
       },
+
+      // ---------- 灵宠 ----------
+      setActivePet: (uid) => set({ activePetUid: uid }),
+
+      releasePet: (uid) => {
+        const state = get();
+        const pet = state.pets.find(p => p.uid === uid);
+        if (!pet) return;
+        const gold = releaseGold(pet);
+        const pets = state.pets.filter(p => p.uid !== uid);
+        set({
+          pets,
+          activePetUid: state.activePetUid === uid ? null : state.activePetUid,
+          gold: state.gold + gold,
+          stats: { ...state.stats, totalGoldEarned: state.stats.totalGoldEarned + gold },
+        });
+        get().showToast(`放生灵宠，获得 ${gold} 金币`);
+      },
+
+      // ---------- 世界 BOSS ----------
+      applyWorldBossResult: (r) => {
+        if (!r.ok) return;
+        const state = get();
+        const skills = { ...state.skills };
+        let gems = state.gems;
+        let inventory = state.inventory;
+        const equips = { ...state.equips };
+
+        for (const id of ['hp', 'weaponry', 'power', 'defence', 'speed'] as SkillId[]) {
+          const res = grantSkillXp(skills, id, r.exp, skills.intellect.level);
+          gems += res.gems;
+        }
+        if (r.legendaryDrop) {
+          equips[r.legendaryDrop.uid] = r.legendaryDrop;
+          inventory = addItem(inventory, `equip:${r.legendaryDrop.uid}`, 1);
+        }
+
+        const stats = {
+          ...state.stats,
+          wbKills: (state.stats.wbKills ?? 0) + (r.killed ? 1 : 0),
+          wbBestDamage: Math.max(state.stats.wbBestDamage ?? 0, r.damage),
+          totalGoldEarned: state.stats.totalGoldEarned + r.gold,
+          totalExpEarned: state.stats.totalExpEarned + r.exp,
+        };
+
+        set({ skills, gems, inventory, equips, stats, gold: state.gold + r.gold, worldBoss: r.worldBoss });
+        if (r.killed) {
+          get().showToast(`🌌 世界 BOSS 已被击杀！下一只已降临`);
+        }
+        get().checkAchievements();
+      },
+
+      setMoreView: (v) => set({ moreView: v }),
 
       // ---------- 离线 ----------
       settleOffline: () => {

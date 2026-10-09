@@ -9,6 +9,7 @@ import {
 import { xpMultiplier, dropMultiplier, critBonus, equipDropBonus, gatherTier, xpToNext, offlineEfficiency, offlineCapSeconds, ACTIVITY_MAP } from './skills';
 import { generateEquipment, rollQuality, getItem, genUid } from './items';
 import { MONSTER_MAP, getRecommendedMonster, getMonstersByRegion } from './monsters';
+import { petBonus } from './pets';
 
 // ---------- 属性计算 ----------
 
@@ -35,10 +36,16 @@ export function computePlayerStats(state: GameState): PlayerStats {
   const buffActive = state.buffExpireAt > Date.now();
   const buffAtk = buffActive ? state.activeBattleBuffAtk : 0;
 
-  const maxHp = Math.round(40 + lv('hp') * 12 + eq.hp);
-  let atk = 6 + lv('power') * 2 + lv('weaponry') * 1 + eq.atk;
+  // 出战灵宠加成
+  const activePet = state.activePetUid
+    ? (state.pets ?? []).find(p => p.uid === state.activePetUid) ?? null
+    : null;
+  const pb = petBonus(activePet);
+
+  const maxHp = Math.round(40 + lv('hp') * 12 + eq.hp + pb.hp);
+  let atk = 6 + lv('power') * 2 + lv('weaponry') * 1 + eq.atk + pb.atk;
   atk = Math.round(atk * (1 + buffAtk / 100));
-  const def = Math.round(3 + lv('defence') * 1.5 + eq.def);
+  const def = Math.round(3 + lv('defence') * 1.5 + eq.def + pb.def);
   const speed = Math.round(5 + lv('speed') * 0.5 + eq.speed);
   const critRate = Math.min(0.6, 0.05 + critBonus(lv('insight')) + eq.crit);
   const dodgeRate = Math.min(0.35, Math.max(0, (speed - 5) * 0.001) + eq.dodge);
@@ -116,7 +123,12 @@ export function rollDrops(monster: MonsterDef, state: GameState, luckStat: numbe
   // 宝石小概率
   const gems = Math.random() < 0.02 * luckMult ? 1 : 0;
 
-  return { exp: monster.exp, gold: monster.gold, items, equips, cards, gems };
+  // 灵宠捕获判定（气运越高越容易；妖王更难收服）
+  const luckSkill = state.skills.luck?.level ?? 0;
+  const capChance = Math.min(0.3, (0.035 + luckStat * 0.0006 + luckSkill * 0.0004) * (monster.isBoss ? 0.3 : 1));
+  const petCapture = Math.random() < capChance ? monster.id : undefined;
+
+  return { exp: monster.exp, gold: monster.gold, items, equips, cards, gems, petCapture };
 }
 
 // ---------- 回合制战斗模拟 ----------

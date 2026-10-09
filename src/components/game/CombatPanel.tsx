@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '@/store/game';
 import { REGIONS, getMonstersByRegion, MONSTER_MAP } from '@/lib/game/monsters';
+import { WORLD_BOSSES } from '@/lib/game/worldboss';
 import { computePlayerStats, rollDrops, simulateRound } from '@/lib/game/engine';
 import { PlayerStats, MonsterDef, BattleLogLine, BattleRewards, CombatantState } from '@/types/game';
 import { Section, ActionButton, ProgressBar, formatNum, QualityBadge } from './ui-bits';
@@ -27,7 +28,7 @@ let logId = 0;
 
 export function CombatPanel() {
   const store = useGameStore();
-  const playerStats = useMemo(() => computePlayerStats(store), [store.skills, store.equipped, store.buffExpireAt, store.activeBattleBuffAtk]);
+  const playerStats = useMemo(() => computePlayerStats(store), [store.skills, store.equipped, store.buffExpireAt, store.activeBattleBuffAtk, store.activePetUid, store.pets]);
 
   const [regionId, setRegionId] = useState(store.lastRegionId);
   const [battle, setBattle] = useState<BattleState | null>(null);
@@ -296,6 +297,17 @@ export function CombatPanel() {
         <div className="text-[10px] text-amber-400/80 text-center">自动战斗已开启：胜利后自动挑战同一妖兽</div>
       )}
 
+      {/* 世界 BOSS 入口 */}
+      <button onClick={() => { store.setMoreView('worldboss'); store.setTab('more'); }}
+        className="w-full bg-gradient-to-r from-rose-950/70 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl p-3 flex items-center gap-3 min-h-[64px] active:scale-[0.99]">
+        <span className="text-3xl animate-pulse" aria-hidden>{WORLD_BOSSES[store.worldBoss.bossIdx % WORLD_BOSSES.length].icon}</span>
+        <span className="flex-1 text-left">
+          <span className="block text-sm font-semibold text-rose-200">世界 BOSS 降临</span>
+          <span className="block text-[10px] text-stone-500">剩余血量 {formatNum(store.worldBoss.hp)} · 伤害累积挑战，击杀得仙品装备</span>
+        </span>
+        <span className="text-xs text-rose-400 shrink-0">前往 ›</span>
+      </button>
+
       {/* 自动战斗开关（选怪界面也可操作） */}
       <button onClick={() => store.toggleAutoBattle()}
         className={cn('w-full rounded-xl border p-3 flex items-center justify-between min-h-[52px] transition',
@@ -414,6 +426,7 @@ function BattleResult({ battle, monster, onAgain, onBack }: {
             </div>
           )}
           {r.cards.length > 0 && <div className="text-purple-300">🎴 获得怪物卡：{monster.name}</div>}
+          {r.petCapture && <div className="text-emerald-300 font-semibold">🥚 灵缘降临！{monster.name} 被你收服，灵宠 +1</div>}
           {r.gems > 0 && <div className="text-cyan-300">💎 获得 {r.gems} 颗宝石</div>}
         </div>
       )}

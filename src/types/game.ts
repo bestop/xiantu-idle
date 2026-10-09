@@ -201,6 +201,7 @@ export interface BattleRewards {
   equips: Equipment[];
   cards: { monsterId: string }[];
   gems: number;
+  petCapture?: string; // 触发灵宠捕获的 monsterId
 }
 
 // ---------- 玩家状态 ----------
@@ -225,7 +226,41 @@ export interface Statistics {
   totalDrops: number;
   offlineSessions: number;
   playStart: number;
+  // v2 新增（旧存档缺失时用默认值兼容）
+  petsCaptured: number;
+  wbKills: number;       // 世界 BOSS 击杀数
+  wbBestDamage: number;  // 单次挑战最高伤害
 }
+
+// ---------- 宠物 ----------
+
+// 灵宠实例（捕获自妖兽，带出战可提供属性加成）
+export interface PetInstance {
+  uid: string;
+  monsterId: string;
+  level: number;
+  xp: number;
+  capturedAt: number;
+}
+
+// ---------- 世界 BOSS ----------
+
+// 世界 BOSS 状态（血量跨挑战持久，被击杀后轮换下一只）
+export interface WorldBossState {
+  bossIdx: number;        // 当期 BOSS 序号
+  hp: number;             // 当前剩余血量
+  spawnedAt: number;      // 刷新时间
+  lastChallengeAt: number;// 上次挑战时间（冷却）
+  seasonDamage: number;   // 本期累计伤害
+  killed: boolean;        // 本期是否已被击杀
+}
+
+// ---------- 更多面板子视图 ----------
+
+export type MoreViewId =
+  | 'root' | 'shop' | 'achievements' | 'codex'
+  | 'pets' | 'worldboss' | 'leaderboard'
+  | 'settings';
 
 // ---------- 成就 ----------
 
@@ -309,6 +344,16 @@ export interface GameState {
 
   // 统计
   stats: Statistics;
+
+  // 宠物
+  pets: PetInstance[];
+  activePetUid: string | null;
+
+  // 世界 BOSS
+  worldBoss: WorldBossState;
+
+  // 更多面板当前子视图（供跨面板跳转）
+  moreView: MoreViewId;
 
   // 离线报告（有内容时弹窗）
   pendingOfflineReport: OfflineReport | null;

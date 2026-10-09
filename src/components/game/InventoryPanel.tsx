@@ -3,8 +3,8 @@
 
 import { useMemo, useState } from 'react';
 import { useGameStore } from '@/store/game';
-import { getItem, QUALITY_TEXT, QUALITY_NAMES, AFFIX_NAMES, formatAffix, BaseItem } from '@/lib/game/items';
-import { Equipment, EquipSlot, ItemQuality } from '@/types/game';
+import { getItem, QUALITY_TEXT, QUALITY_NAMES, AFFIX_NAMES, formatAffix } from '@/lib/game/items';
+import { BaseItem, Equipment, EquipSlot, ItemQuality, InvItem } from '@/types/game';
 import { computePlayerStats, equipTotals } from '@/lib/game/engine';
 import { Section, ActionButton, QualityBadge, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
@@ -39,9 +39,9 @@ export function InventoryPanel() {
   const inventory = store.inventory;
   const equips = store.equips;
   const grouped = useMemo(() => {
-    const pills: { itemId: string; qty: number }[] = [];
-    const materials: { itemId: string; qty: number }[] = [];
-    const treasures: { itemId: string; qty: number }[] = [];
+    const pills: InvItem[] = [];
+    const materials: InvItem[] = [];
+    const treasures: InvItem[] = [];
     const gearUids: string[] = [];
     for (const inv of inventory) {
       if (inv.itemId.startsWith('equip:')) {

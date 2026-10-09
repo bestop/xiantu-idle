@@ -45,6 +45,19 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'equip_legendary', name: '仙器在握', icon: '🎆', description: '获得一件仙品装备', metric: 'bestQualityLegendary', target: 1, gemReward: 25 },
   { id: 'equip_mythic', name: '神器降世', icon: '🌠', description: '获得一件神品装备', metric: 'bestQualityMythic', target: 1, gemReward: 80 },
 
+  // ===== 灵宠 =====
+  { id: 'pet_1', name: '初结灵缘', icon: '🥚', description: '收服第 1 只灵宠', metric: 'pets', target: 1, gemReward: 10 },
+  { id: 'pet_5', name: '灵兽成群', icon: '🐣', description: '收服 5 只灵宠', metric: 'pets', target: 5, gemReward: 20 },
+  { id: 'pet_12', name: '万灵之友', icon: '🐾', description: '灵宠栏全部占满（12 只）', metric: 'pets', target: 12, gemReward: 60 },
+  { id: 'pet_lv50', name: '御兽真传', icon: '🐉', description: '任意灵宠达到 50 级', metric: 'bestPetLevel', target: 50, gemReward: 25 },
+  { id: 'pet_lv200', name: '兽神附体', icon: '🐲', description: '任意灵宠达到 200 级', metric: 'bestPetLevel', target: 200, gemReward: 120 },
+
+  // ===== 世界 BOSS =====
+  { id: 'wb_1', name: '世界之敌', icon: '🐍', description: '首次击杀世界 BOSS', metric: 'wbKills', target: 1, gemReward: 15 },
+  { id: 'wb_4', name: '诸神黄昏', icon: '💀', description: '累计击杀 4 只世界 BOSS', metric: 'wbKills', target: 4, gemReward: 40 },
+  { id: 'wb_all', name: '弑神者', icon: '🌀', description: '击杀全部 8 只世界 BOSS', metric: 'wbKills', target: 8, gemReward: 150 },
+  { id: 'wb_dmg_10k', name: '伤害之王', icon: '💯', description: '单次挑战世界 BOSS 造成 1 万伤害', metric: 'wbBestDamage', target: 10000, gemReward: 30 },
+
   // ===== 修行 =====
   { id: 'offline_10', name: '闭关十次', icon: '🌙', description: '离线修行 10 次', metric: 'offlineSessions', target: 10, gemReward: 8 },
   { id: 'offline_50', name: '闭关老僧', icon: '🛏️', description: '离线修行 50 次', metric: 'offlineSessions', target: 50, gemReward: 20 },
@@ -65,6 +78,10 @@ export function achievementValue(metric: string, state: GameState): number {
     case 'totalSkill': return totalSkillLevel(state.skills);
     case 'combatSum': return combatLevelSum(state.skills);
     case 'cardTypes': return Object.keys(state.cards).length;
+    case 'pets': return (state.pets ?? []).length;
+    case 'bestPetLevel': return Math.max(0, ...(state.pets ?? []).map(p => p.level));
+    case 'wbKills': return state.stats.wbKills ?? 0;
+    case 'wbBestDamage': return state.stats.wbBestDamage ?? 0;
     case 'anySkill10': return Math.max(...Object.values(state.skills).map(s => s.level)) >= 10 ? 1 : 0;
     case 'anySkill25': return Math.max(...Object.values(state.skills).map(s => s.level)) >= 25 ? 1 : 0;
     case 'anySkill50': return Math.max(...Object.values(state.skills).map(s => s.level)) >= 50 ? 1 : 0;

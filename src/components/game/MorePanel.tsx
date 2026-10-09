@@ -1,4 +1,4 @@
-// 更多面板：市场 / 成就 / 怪物图鉴 / 设置
+// 更多面板：灵宠舍 / 世界BOSS / 天梯榜 / 仙市 / 成就 / 图鉴 / 设置
 'use client';
 
 import { useState } from 'react';
@@ -7,21 +7,29 @@ import { getShopEntries } from '@/lib/game/engine';
 import { getItem, QUALITY_TEXT } from '@/lib/game/items';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
 import { REGIONS, getMonstersByRegion, TOTAL_MONSTERS } from '@/lib/game/monsters';
+import { PetPanel } from './PetPanel';
+import { WorldBossPanel } from './WorldBossPanel';
+import { LeaderboardPanel } from './LeaderboardPanel';
 import { Section, ActionButton, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, Store, Trophy, BookOpen, Settings, AlertTriangle } from 'lucide-react';
-
-type MoreView = 'root' | 'shop' | 'achievements' | 'codex' | 'settings';
+import { ChevronLeft, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal } from 'lucide-react';
 
 export function MorePanel() {
-  const [view, setView] = useState<MoreView>('root');
+  const view = useGameStore(s => s.moreView);
+  const setView = useGameStore(s => s.setMoreView);
 
   if (view === 'shop') return <ShopView onBack={() => setView('root')} />;
   if (view === 'achievements') return <AchievementsView onBack={() => setView('root')} />;
   if (view === 'codex') return <CodexView onBack={() => setView('root')} />;
+  if (view === 'pets') return <PetPanel onBack={() => setView('root')} />;
+  if (view === 'worldboss') return <WorldBossPanel onBack={() => setView('root')} />;
+  if (view === 'leaderboard') return <LeaderboardPanel onBack={() => setView('root')} />;
   if (view === 'settings') return <SettingsView onBack={() => setView('root')} />;
 
   const entries = [
+    { id: 'pets', icon: <PawPrint className="w-6 h-6" />, title: '灵宠舍', desc: '收服妖兽为灵宠，出战提供属性加成', badge: '' },
+    { id: 'worldboss', icon: <Skull className="w-6 h-6" />, title: '世界 BOSS', desc: '血量持久的巨兽，伤害累积挑战', badge: '' },
+    { id: 'leaderboard', icon: <Medal className="w-6 h-6" />, title: '天梯榜', desc: '综合实力排名，与万千修士争锋', badge: '' },
     { id: 'shop', icon: <Store className="w-6 h-6" />, title: '仙市', desc: '购买丹药、材料与装备宝袋', badge: '' },
     { id: 'achievements', icon: <Trophy className="w-6 h-6" />, title: '成就', desc: '永久成就与宝石奖励', badge: '' },
     { id: 'codex', icon: <BookOpen className="w-6 h-6" />, title: '妖兽图鉴', desc: '收集怪物卡片，点亮图鉴', badge: '' },
@@ -32,8 +40,9 @@ export function MorePanel() {
     <div className="p-3 pb-24 space-y-2">
       {entries.map(e => (
         <button key={e.id} onClick={() => setView(e.id)}
-          className="w-full bg-stone-900/80 border border-stone-800 rounded-xl p-3.5 flex items-center gap-3 text-left active:scale-[0.99] min-h-[64px]">
-          <span className="text-amber-300">{e.icon}</span>
+          className={cn('w-full bg-stone-900/80 border rounded-xl p-3.5 flex items-center gap-3 text-left active:scale-[0.99] min-h-[64px]',
+            e.id === 'worldboss' ? 'border-rose-900/60' : 'border-stone-800')}>
+          <span className={e.id === 'worldboss' ? 'text-rose-400' : 'text-amber-300'}>{e.icon}</span>
           <div className="flex-1">
             <div className="text-sm font-semibold text-stone-200">{e.title}</div>
             <div className="text-[10px] text-stone-500">{e.desc}</div>
@@ -234,6 +243,9 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <p>· <b className="text-stone-300">16 项技能</b>：5 项战斗技能随战斗成长，11 项生活技能通过活动修炼，上限 200 级。</p>
           <p>· <b className="text-stone-300">真实离线进度</b>：关闭页面后角色继续修炼、战斗、采集（受定力技能影响），回来领取收益。</p>
           <p>· <b className="text-stone-300">随机装备</b>：主属性与副词条完全随机，品质决定强度，气运影响掉落。</p>
+          <p>· <b className="text-stone-300">灵宠</b>：战胜妖兽小概率收服，出战提供属性加成并随战斗成长。</p>
+          <p>· <b className="text-stone-300">世界 BOSS</b>：血量跨挑战持久的巨兽，按伤害结算奖励，击杀得仙品装备。</p>
+          <p>· <b className="text-stone-300">天梯榜</b>：综合实力排名，与万千修士争锋。</p>
           <p>· <b className="text-stone-300">永久成长</b>：无强制转生，技能每升 1 级 +1 宝石，成就另有宝石奖励。</p>
           <p>· 存档保存在浏览器本地。</p>
         </div>

@@ -4,6 +4,8 @@
 import { useGameStore } from '@/store/game';
 import { computePlayerStats } from '@/lib/game/engine';
 import { getTitle, combatLevelSum, totalSkillLevel, ACTIVITY_MAP, offlineEfficiency, offlineCapSeconds } from '@/lib/game/skills';
+import { petBonus, petStats, petXpToNext, MAX_PET_LEVEL } from '@/lib/game/pets';
+import { MONSTER_MAP } from '@/lib/game/monsters';
 import { Section, ProgressBar, StatPill, ActionButton, formatNum, formatDuration } from './ui-bits';
 import { QUALITY_TEXT } from '@/lib/game/items';
 
@@ -66,6 +68,47 @@ export function HomePanel() {
         </div>
       </Section>
 
+      {/* 出战灵宠 */}
+      {(() => {
+        const pets = state.pets ?? [];
+        const pet = pets.find(p => p.uid === state.activePetUid) ?? null;
+        if (pets.length === 0) return null;
+        if (!pet) {
+          return (
+            <Section>
+              <button onClick={() => { state.setMoreView('pets'); state.setTab('more'); }}
+                className="w-full flex items-center justify-between min-h-[44px]">
+                <span className="text-xs text-stone-400">🐾 灵宠休息中（已有 {pets.length} 只）</span>
+                <span className="text-xs text-amber-400">前往灵宠舍 ›</span>
+              </button>
+            </Section>
+          );
+        }
+        const m = MONSTER_MAP[pet.monsterId];
+        const ps = petStats(pet);
+        const bonus = petBonus(pet);
+        const xpNeed = petXpToNext(pet.level);
+        return (
+          <Section className="bg-gradient-to-br from-emerald-950/40 via-stone-900 to-stone-900">
+            <button onClick={() => { state.setMoreView('pets'); state.setTab('more'); }} className="w-full text-left">
+              <div className="flex items-center gap-2.5">
+                <span className="text-3xl animate-pulse" aria-hidden>{m.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-emerald-300">{m.name} <span className="text-[10px] text-stone-500">Lv.{pet.level} · 出战中</span></div>
+                  <div className="text-[10px] text-stone-500 tabular-nums">
+                    攻 {formatNum(ps.atk)} · 防 {formatNum(ps.def)} · 加成 攻+{formatNum(bonus.atk)} 防+{formatNum(bonus.def)} 血+{formatNum(bonus.hp)}
+                  </div>
+                </div>
+                <span className="text-[10px] text-amber-400 shrink-0">灵宠舍 ›</span>
+              </div>
+              {pet.level < MAX_PET_LEVEL && (
+                <ProgressBar value={pet.xp} max={xpNeed} className="mt-2 h-1.5" barClass="bg-emerald-500" />
+              )}
+            </button>
+          </Section>
+        );
+      })()}
+
       {/* 当前修行 */}
       <Section title="当前修行" extra={
         act ? <ActionButton variant="ghost" className="!min-h-[36px] !px-3 text-xs" onClick={() => state.stopActivity()}>停止</ActionButton> : undefined
@@ -104,6 +147,8 @@ export function HomePanel() {
           <div className="flex justify-between"><span className="text-stone-500">累计经验</span><span className="tabular-nums">{formatNum(state.stats.totalExpEarned)}</span></div>
           <div className="flex justify-between"><span className="text-stone-500">掉落物品</span><span className="tabular-nums">{formatNum(state.stats.totalDrops)}</span></div>
           <div className="flex justify-between"><span className="text-stone-500">离线次数</span><span className="tabular-nums">{formatNum(state.stats.offlineSessions)}</span></div>
+          <div className="flex justify-between"><span className="text-stone-500">灵宠收服</span><span className="tabular-nums">{formatNum(state.stats.petsCaptured ?? 0)}</span></div>
+          <div className="flex justify-between"><span className="text-stone-500">世界 BOSS 击杀</span><span className="tabular-nums">{formatNum(state.stats.wbKills ?? 0)}</span></div>
         </div>
       </Section>
 
