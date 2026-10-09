@@ -56,3 +56,10 @@ server.log
 db/*.db
 *.pid
 /scripts/
+
+# local workspace artifacts
+.env
+/godway/
+/download/
+/tool-results/
+/worklog.md
