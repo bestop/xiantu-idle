@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { useGameStore } from '@/store/game';
 import { getShopEntries } from '@/lib/game/engine';
-import { getItem, QUALITY_TEXT } from '@/lib/game/items';
+import { getItem, QUALITY_TEXT, AFFIX_NAMES } from '@/lib/game/items';
 import { FORGE_RECIPES, forgeCostCheck, ForgeRecipe } from '@/lib/game/forge';
+import { formatAffix } from '@/lib/game/items';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
 import { REGIONS, getMonstersByRegion, TOTAL_MONSTERS } from '@/lib/game/monsters';
 import {
@@ -119,6 +120,9 @@ function ForgeView({ onBack }: { onBack: () => void }) {
                   </div>
                   <div className="text-[10px] text-stone-500 mt-0.5">来源：{recipe.bossName}</div>
                   <div className="text-[10px] text-stone-400 mt-1 leading-relaxed">{recipe.desc}</div>
+                  <div className="text-[10px] text-amber-300/90 mt-1.5 inline-flex items-center gap-1 bg-amber-950/40 border border-amber-900/50 rounded-md px-2 py-1">
+                    <span aria-hidden>✨</span>专属词条·{recipe.sigAffix.label}：{formatAffix(recipe.sigAffix.key, recipe.sigAffix.value)} {AFFIX_NAMES[recipe.sigAffix.key]}（必带）
+                  </div>
                 </div>
               </div>
 
@@ -153,7 +157,7 @@ function ForgeView({ onBack }: { onBack: () => void }) {
         })}
       </div>
 
-      <div className="text-[10px] text-stone-600 text-center">专属装备词条随机生成，亦可继续炼器强化</div>
+      <div className="text-[10px] text-stone-600 text-center">专属装备必带专属词条（金色），其余词条随机生成，亦可继续炼器强化</div>
     </div>
   );
 }
@@ -469,7 +473,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <p>· <b className="text-stone-300">随机装备</b>：主属性与副词条完全随机，品质决定强度，气运影响掉落。</p>
           <p>· <b className="text-stone-300">灵宠</b>：战胜妖兽小概率收服，出战提供属性加成并随战斗成长；可进化（凡→灵→仙→神）与融合升星。</p>
           <p>· <b className="text-stone-300">炼器</b>：背包中炼化装备，主属性 +12%/级，失败不损装备，上限 +10。</p>
-          <p>· <b className="text-stone-300">炼宝坊</b>：妖王专属异宝熔铸专属神装，十大妖王各有首杀限定称号。</p>
+          <p>· <b className="text-stone-300">炼宝坊</b>：妖王专属异宝熔铸专属神装，每件必带专属词条；十大妖王首杀各有限定称号，集齐十枚解锁隐藏称号「号令天下」。</p>
           <p>· <b className="text-stone-300">宗门</b>：拜入四大宗门获得专属异能，战斗积累贡献，兑换珍宝、晋升位阶。</p>
           <p>· <b className="text-stone-300">世界 BOSS</b>：血量跨挑战持久的巨兽，按伤害结算奖励并列入本期伤害榜，击杀得仙品装备与专属异宝。</p>
           <p>· <b className="text-stone-300">天梯榜</b>：综合实力排名，与万千修士争锋。</p>

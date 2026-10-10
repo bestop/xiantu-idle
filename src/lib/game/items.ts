@@ -192,10 +192,12 @@ export function genUid(): string {
 }
 
 // 生成一件随机装备（Harpagia 式随机词条）
+// opts.excludeKeys：从随机副词条池中剔除的属性（炼宝坊专属词条防重复）
 export function generateEquipment(
   tier: number,
   quality: ItemQuality,
-  slotHint?: EquipSlot
+  slotHint?: EquipSlot,
+  opts?: { excludeKeys?: AffixKey[] }
 ): Equipment {
   const t = Math.max(1, Math.min(120, Math.round(tier)));
   const bases = slotHint ? EQUIP_BASES.filter(b => b.slot === slotHint) : EQUIP_BASES;
@@ -218,7 +220,7 @@ export function generateEquipment(
     quality === 'rare' ? 2 :
     quality === 'fine' ? 1 : (Math.random() < 0.3 ? 1 : 0);
 
-  const pool = [...AFFIX_POOL];
+  const pool = [...AFFIX_POOL].filter(p => !(opts?.excludeKeys ?? []).includes(p.key));
   const affixes: { key: AffixKey; value: number }[] = [];
   for (let i = 0; i < affixCount && pool.length > 0; i++) {
     const total = pool.reduce((s, x) => s + x.w, 0);

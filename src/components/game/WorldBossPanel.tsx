@@ -206,9 +206,9 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
         <div className="text-[10px] text-stone-600 mt-2 text-center">本期对当前世界 BOSS 的累计伤害排名，轮换后重新计榜</div>
       </Section>
 
-      {/* 妖王称号图鉴 */}
+      {/* 妖王称号图鉴（含隐藏称号） */}
       <Section title="妖王称号图鉴" extra={<span className={cn('text-[10px] tabular-nums', slainTitles >= WORLD_BOSSES.length ? 'text-amber-300' : 'text-stone-500')}>{slainTitles} / {WORLD_BOSSES.length}</span>}>
-        <div className="text-[10px] text-stone-500 mb-2">首次击杀对应妖王即授予限定称号，集齐十枚者可号令天下（并不能）。</div>
+        <div className="text-[10px] text-stone-500 mb-2">首次击杀对应妖王即授予限定称号；集齐十枚，解锁隐藏称号「号令天下」。</div>
         <div className="grid grid-cols-2 gap-1.5">
           {WORLD_BOSSES.map(b => {
             const tDef = WB_KILL_TITLES[b.name];
@@ -229,6 +229,25 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
             );
           })}
         </div>
+        {(() => {
+          const owned = store.titles?.includes('title_haoling') ?? false;
+          return (
+            <div className={cn('mt-1.5 rounded-lg border px-2.5 py-2 flex items-center gap-2',
+              owned
+                ? 'bg-gradient-to-r from-amber-950/60 via-rose-950/40 to-amber-950/60 border-amber-700/70'
+                : 'bg-stone-900/60 border-stone-800 opacity-80')}>
+              <span className={cn('shrink-0 text-lg', owned && 'animate-breathe')} aria-hidden>👑</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[9px] text-stone-500">隐藏称号 · 集齐十大妖王称号解锁</div>
+                <div className={cn('text-[12px] font-bold tracking-wider',
+                  owned ? 'text-gold-grad' : 'text-stone-600')}>
+                  {owned ? '「号令天下」· 已现世' : '「？？？」'}
+                </div>
+              </div>
+              {owned && <span className="shrink-0 text-[9px] text-amber-400">已授</span>}
+            </div>
+          );
+        })()}
       </Section>
 
       {/* 轮换表 */}

@@ -27,14 +27,28 @@ export const WB_KILL_TITLES: Record<string, TitleDef> = {
   '葬天仙帝': { id: 'title_shixian', name: '弑仙者', desc: '首次击杀世界 BOSS「葬天仙帝」' },
 };
 
-// 固定称号（画册 / 转生 / 世界 BOSS 击杀）
+// 隐藏称号：集齐十大妖王首杀称号后现世
+export const HIDDEN_TITLE_HAOLING: TitleDef = {
+  id: 'title_haoling',
+  name: '号令天下',
+  desc: '集齐十大妖王首杀限定称号（隐藏称号）',
+};
+
+// 固定称号（画册 / 转生 / 世界 BOSS 击杀 / 隐藏）
 export const FIXED_TITLES: TitleDef[] = [
   { id: 'title_shanhe', name: '山河行者', desc: '集齐画册「行走山河」全部明信片' },
   { id: 'title_baiyi', name: '百艺修士', desc: '集齐画册「修行手记」全部明信片' },
   { id: 'title_huasheng', name: '画圣·山河印心', desc: '集齐整本山河画册（限定）' },
   ...Object.values(WB_KILL_TITLES),
   ...REBIRTH_TITLES.map(t => ({ id: t.id, name: t.name, desc: `转生 ${t.count} 次达成` })),
+  HIDDEN_TITLE_HAOLING,
 ];
+
+// 是否已集齐十大妖王首杀称号（隐藏称号授予条件）
+export function hasAllWbTitles(ownedTitleIds: string[]): boolean {
+  const ids = Object.values(WB_KILL_TITLES).map(t => t.id);
+  return ids.every(id => ownedTitleIds.includes(id));
+}
 
 export const TITLE_MAP: Record<string, TitleDef> = Object.fromEntries(
   FIXED_TITLES.map(t => [t.id, t])

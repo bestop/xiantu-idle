@@ -117,8 +117,40 @@ export const SCENES: SceneDef[] = [
     caption: '它很大，我很小，但剑没有退。',
   },
   {
-    id: 'wb-guiqu', kind: 'boss', refId: '归墟鲸祖', name: '归墟鲸祖', img: '/scenes/wb-whale.png',
+    id: 'wb-xueshang', kind: 'boss', refId: '噬山血蟒', name: '噬山血蟒', img: '/scenes/wb-python.png',
+    caption: '满山红叶，它盘成一座小山。我没跑，它也没追。',
+  },
+  {
+    id: 'wb-minghuang', kind: 'boss', refId: '九幽冥皇', name: '九幽冥皇', img: '/scenes/wb-nether.png',
+    caption: '鬼火当灯，冥皇在王座上打盹。我踮着脚绕过去了。',
+  },
+  {
+    id: 'wb-yandi', kind: 'boss', refId: '焚世炎帝', name: '焚世炎帝', img: '/scenes/wb-flame.png',
+    caption: '山谷很热，灯笼显得多余。原来火也要先学会温暖自己。',
+  },
+  {
+    id: 'wb-haihuang', kind: 'boss', refId: '沧溟海皇', name: '沧溟海皇', img: '/scenes/wb-seaking.png',
+    caption: '浪比城墙还高，龙在浪里看我。它说海很深，让我别怕。',
+  },
+  {
+    id: 'wb-shidi', kind: 'boss', refId: '万古石帝', name: '万古石帝', img: '/scenes/wb-stone.png',
+    caption: '石帝坐了很久很久，久到身上长满苔藓与星星。',
+  },
+  {
+    id: 'wb-leijun', kind: 'boss', refId: '紫雷天君', name: '紫雷天君', img: '/scenes/wb-thunder.png',
+    caption: '紫色的雷一闪一闪，我数到第七下就不数了。',
+  },
+  {
+    id: 'wb-jingzu', kind: 'boss', refId: '归墟鲸祖', name: '归墟鲸祖', img: '/scenes/wb-whale.png',
     caption: '它驮着归墟游了万年，我的小灯不聒不响。',
+  },
+  {
+    id: 'wb-youhou', kind: 'boss', refId: '太阴幽后', name: '太阴幽后', img: '/scenes/wb-moon.png',
+    caption: '月亮很大，狐狸的尾巴比月光还软。',
+  },
+  {
+    id: 'wb-moshen', kind: 'boss', refId: '混沌魔神', name: '混沌魔神', img: '/scenes/wb-chaos.png',
+    caption: '它由星尘组成，我的灯是唯一没被卷走的东西。',
   },
   {
     id: 'wb-zangtian', kind: 'boss', refId: '葬天仙帝', name: '葬天仙帝', img: '/scenes/wb-emperor.png',

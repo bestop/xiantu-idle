@@ -175,7 +175,7 @@ export function InventoryPanel() {
                     {isEquipped && <span className="text-[9px] px-1 rounded bg-amber-900 text-amber-300">已装备</span>}
                   </div>
                   <div className="text-[10px] text-stone-500 mt-0.5">
-                    {eq.tier}阶 · {mainStatText(eq)} {eq.affixes.length > 0 && `· ${eq.affixes.length}条副属性`}
+                    {eq.tier}阶 · {mainStatText(eq)} {eq.sigAffix && <span className="text-amber-400">· ✨专属</span>} {eq.affixes.length > 0 && `· ${eq.affixes.length}条副属性`}
                   </div>
                 </div>
                 <span className="text-[10px] text-stone-500 shrink-0">🪙{formatNum(eq.sellPrice)}</span>
@@ -289,6 +289,12 @@ function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
               <span className="text-emerald-300">{AFFIX_NAMES[a.key]} {formatAffix(a.key, a.value * refineAffixMult(eq))}</span>
             </div>
           ))}
+          {eq.sigAffix && (
+            <div className="flex justify-between items-center bg-amber-950/30 border border-amber-900/40 rounded-md px-2 py-1">
+              <span className="text-amber-400/90">✨ 专属词条·{eq.sigAffix.label}</span>
+              <span className="text-amber-300 font-semibold">{AFFIX_NAMES[eq.sigAffix.key]} {formatAffix(eq.sigAffix.key, eq.sigAffix.value * refineAffixMult(eq))}{eq.refine ? <span className="text-[9px] text-amber-500 ml-1">（含炼器）</span> : null}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-1 border-t border-stone-800">
             <span className="text-stone-400">综合评分</span>
             <span className="tabular-nums text-stone-200">{thisScore}
@@ -355,6 +361,7 @@ function gearScore(eq: Equipment): number {
   const all = [
     { key: eq.mainStat.key, value: eq.mainStat.value * rm },
     ...eq.affixes.map(a => ({ key: a.key, value: a.value * am })),
+    ...(eq.sigAffix ? [{ key: eq.sigAffix.key, value: eq.sigAffix.value * am }] : []),
   ];
   for (const a of all) {
     switch (a.key) {

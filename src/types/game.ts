@@ -132,6 +132,8 @@ export interface Equipment {
   icon: string;
   mainStat: { key: AffixKey; value: number };
   affixes: EquipAffix[];
+  // 专属词条（炼宝坊专属装备必带，随炼器成长；旧存档无此字段）
+  sigAffix?: { key: AffixKey; value: number; label: string };
   sellPrice: number;
   createdAt: number;
   refine: number; // 炼器等级 0-10（旧存档默认 0）

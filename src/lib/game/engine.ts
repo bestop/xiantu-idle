@@ -25,7 +25,11 @@ export function equipTotals(equipped: EquipSlots) {
     const rm = refineMainMult(e);
     const am = refineAffixMult(e);
     const main = { key: e.mainStat.key, value: e.mainStat.value * rm };
-    const all = [main, ...e.affixes.map(a => ({ key: a.key, value: a.value * am }))];
+    const all = [
+      main,
+      ...e.affixes.map(a => ({ key: a.key, value: a.value * am })),
+      ...(e.sigAffix ? [{ key: e.sigAffix.key, value: e.sigAffix.value * am }] : []),
+    ];
     for (const a of all) {
       totals[a.key] += a.value;
     }

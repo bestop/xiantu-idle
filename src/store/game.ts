@@ -36,7 +36,7 @@ import {
   initialRebirth, normalizeRebirth, canRebirth, rebirthPointsGain, REBIRTH_TITLES,
 } from '@/lib/game/rebirth';
 import { ALBUM_REWARDS, isAlbumRewardAvailable } from '@/lib/game/scenes';
-import { getTitleDef, currentSectTitleId, normalizeTitles, WB_KILL_TITLES } from '@/lib/game/titles';
+import { getTitleDef, currentSectTitleId, normalizeTitles, WB_KILL_TITLES, hasAllWbTitles, HIDDEN_TITLE_HAOLING } from '@/lib/game/titles';
 import { FORGE_MAP, forgeCostCheck, forgeEquipment } from '@/lib/game/forge';
 import { formatNum } from '@/components/game/ui-bits';
 
@@ -885,6 +885,12 @@ export const useGameStore = create<GameStore>()(
           const t = WB_KILL_TITLES[bossName];
           if (t && !titles.includes(t.id)) { titles.push(t.id); changed = true; }
         }
+        // 隐藏称号「号令天下」：集齐十大妖王首杀称号后回填
+        if (!titles.includes(HIDDEN_TITLE_HAOLING.id) && hasAllWbTitles(titles)) {
+          titles.push(HIDDEN_TITLE_HAOLING.id);
+          changed = true;
+          get().showToast(`👑 十枚妖王称号集齐！隐藏称号「号令天下」现世，可往主页佩戴`);
+        }
         if (changed) set({ titles });
       },
 
@@ -922,6 +928,7 @@ export const useGameStore = create<GameStore>()(
         // 首杀记录 + 限定称号授予
         let titles = [...(state.titles ?? [])];
         let newTitleName: string | null = null;
+        let haolingUnlocked = false;
         if (r.killed && r.killedBossName) {
           const slain = [...new Set([...(state.stats.wbSlain ?? []), r.killedBossName])];
           const stats0 = { ...state.stats, wbSlain: slain };
@@ -929,6 +936,11 @@ export const useGameStore = create<GameStore>()(
           if (tDef && !titles.includes(tDef.id)) {
             titles.push(tDef.id);
             newTitleName = tDef.name;
+          }
+          // 隐藏称号：第十枚集齐瞬间现世
+          if (!titles.includes(HIDDEN_TITLE_HAOLING.id) && hasAllWbTitles(titles)) {
+            titles.push(HIDDEN_TITLE_HAOLING.id);
+            haolingUnlocked = true;
           }
           const stats = {
             ...stats0,
@@ -953,6 +965,9 @@ export const useGameStore = create<GameStore>()(
         }
         if (newTitleName) {
           get().showToast(`🏆 获得限定称号「${newTitleName}」，可在主页佩戴`);
+        }
+        if (haolingUnlocked) {
+          get().showToast(`👑 十枚妖王称号集齐！隐藏称号「号令天下」现世，号令天下，莫敢不从`);
         }
         get().checkAchievements();
       },

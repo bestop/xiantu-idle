@@ -3,6 +3,24 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ===== 黛青墨蓝 · 玄夜色板 =====
+   重定义 Tailwind stone 色板：由纯黑灰转向带青蓝色度的"黛夜"调，
+   全站 bg-stone-* / border-stone-* / text-stone-* 自动生效，
+   与金色（amber）主题构成"玄青 + 鎏金"的仙侠高级配色。 */
+@theme {
+  --color-stone-50:  oklch(0.985 0.004 240);
+  --color-stone-100: oklch(0.967 0.007 240);
+  --color-stone-200: oklch(0.923 0.012 240);
+  --color-stone-300: oklch(0.869 0.017 242);
+  --color-stone-400: oklch(0.709 0.026 248);
+  --color-stone-500: oklch(0.553 0.032 252);
+  --color-stone-600: oklch(0.444 0.028 254);
+  --color-stone-700: oklch(0.372 0.032 256);
+  --color-stone-800: oklch(0.272 0.032 258);
+  --color-stone-900: oklch(0.219 0.028 260);
+  --color-stone-950: oklch(0.157 0.024 262);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -79,9 +97,9 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.157 0.024 262);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.219 0.028 260);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
@@ -152,8 +170,10 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 32% at 50% -6%, rgba(251, 191, 36, 0.07), transparent 70%),
-    radial-gradient(ellipse 46% 20% at 82% 4%, rgba(217, 119, 6, 0.05), transparent 70%);
+    radial-gradient(ellipse 70% 32% at 50% -6%, rgba(251, 191, 36, 0.08), transparent 70%),
+    radial-gradient(ellipse 46% 20% at 82% 4%, rgba(217, 119, 6, 0.05), transparent 70%),
+    radial-gradient(ellipse 60% 26% at 18% 12%, rgba(56, 130, 200, 0.06), transparent 72%),
+    radial-gradient(ellipse 90% 40% at 50% 108%, rgba(30, 64, 120, 0.16), transparent 74%);
 }
 .xiantu-bg::before {
   content: '';
@@ -162,20 +182,21 @@
   right: 0;
   bottom: 0;
   height: 34%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 375 160' preserveAspectRatio='xMidYMax slice'%3E%3Cpath d='M0 160 L0 108 L38 72 L74 104 L118 52 L162 98 L206 58 L248 94 L296 46 L338 88 L375 60 L375 160 Z' fill='%231c1917'/%3E%3Cpath d='M0 160 L0 132 L48 98 L92 126 L138 86 L188 120 L238 82 L288 116 L330 88 L375 112 L375 160 Z' fill='%23292524' opacity='0.65'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 375 160' preserveAspectRatio='xMidYMax slice'%3E%3Cpath d='M0 160 L0 108 L38 72 L74 104 L118 52 L162 98 L206 58 L248 94 L296 46 L338 88 L375 60 L375 160 Z' fill='%23101a2e'/%3E%3Cpath d='M0 160 L0 132 L48 98 L92 126 L138 86 L188 120 L238 82 L288 116 L330 88 L375 112 L375 160 Z' fill='%23182742' opacity='0.65'/%3E%3C/svg%3E");
   background-size: 100% 100%;
   opacity: 0.85;
 }
+/* 星点：暖金星 + 青蓝星双色交织，呼应玄青背景 */
 .xiantu-bg::after {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
     radial-gradient(1.5px 1.5px at 12% 18%, rgba(254, 243, 199, 0.5), transparent 100%),
-    radial-gradient(1px 1px at 28% 9%, rgba(254, 243, 199, 0.35), transparent 100%),
+    radial-gradient(1px 1px at 28% 9%, rgba(147, 197, 253, 0.4), transparent 100%),
     radial-gradient(1.5px 1.5px at 47% 15%, rgba(254, 243, 199, 0.28), transparent 100%),
     radial-gradient(1px 1px at 66% 7%, rgba(254, 243, 199, 0.42), transparent 100%),
-    radial-gradient(1.5px 1.5px at 81% 20%, rgba(254, 243, 199, 0.3), transparent 100%),
+    radial-gradient(1.5px 1.5px at 81% 20%, rgba(147, 197, 253, 0.34), transparent 100%),
     radial-gradient(1px 1px at 91% 11%, rgba(254, 243, 199, 0.38), transparent 100%);
   animation: twinkle 5s ease-in-out infinite alternate;
 }

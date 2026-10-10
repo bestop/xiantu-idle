@@ -4,7 +4,7 @@
 // 成品继承随机词条机制（品质/阶级固定，词条随机）
 // ============================================
 
-import { Equipment, ItemQuality, EquipSlot } from '@/types/game';
+import { Equipment, ItemQuality, EquipSlot, AffixKey } from '@/types/game';
 import { generateEquipment, getItem } from './items';
 
 export interface ForgeRecipe {
@@ -20,6 +20,7 @@ export interface ForgeRecipe {
   gold: number;
   bossName: string;          // 核心材料来源妖王
   desc: string;              // 成品 lore
+  sigAffix: { key: AffixKey; value: number; label: string }; // 专属词条（必带，随炼器成长）
 }
 
 // 4 件妖王专属装备
@@ -39,6 +40,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     gold: 30000,
     bossName: '归墟之主（归墟海妖王）',
     desc: '以渊主逆鳞为引锻成的黑鳞宝甲，刀剑不侵，潮声自甲纹间昼夜不息。',
+    sigAffix: { key: 'def', value: 1200, label: '玄鳞不侵' },
   },
   {
     id: 'forge_xianhai',
@@ -55,6 +57,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     gold: 80000,
     bossName: '仙帝残影（仙墟妖王）',
     desc: '半截断剑重铸，剑身犹带仙战余温，出鞘时隐约有大道之音低吟。',
+    sigAffix: { key: 'atk', value: 3300, label: '大道剑鸣' },
   },
   {
     id: 'forge_canghai',
@@ -71,6 +74,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     gold: 60000,
     bossName: '归墟鲸祖（世界 BOSS）',
     desc: '定海神珠串成的链饰，佩之如携沧海，风浪不侵。',
+    sigAffix: { key: 'dodge', value: 0.055, label: '沧海无波' },
   },
   {
     id: 'forge_zangtian',
@@ -88,6 +92,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     gold: 150000,
     bossName: '葬天仙帝（世界 BOSS）',
     desc: '以仙帝残玉刻成的至高印玺，镇压气运，执之者如承天命。',
+    sigAffix: { key: 'luck', value: 250, label: '镇压气运' },
   },
 ];
 
@@ -122,11 +127,14 @@ function formatGold(n: number): string {
   return n >= 10000 ? `${(n / 10000).toFixed(n % 10000 === 0 ? 0 : 1)}万` : `${n}`;
 }
 
-// 合成成品：随机词条 + 专属名/图标/来源
+// 合成成品：专属词条必带 + 其余随机词条（品质/阶级固定）
 export function forgeEquipment(recipe: ForgeRecipe): Equipment {
-  const eq = generateEquipment(recipe.tier, recipe.quality, recipe.slot);
+  const eq = generateEquipment(recipe.tier, recipe.quality, recipe.slot, {
+    excludeKeys: [recipe.sigAffix.key],
+  });
   eq.name = recipe.name;
   eq.icon = recipe.icon;
   eq.baseId = recipe.id;
+  eq.sigAffix = { ...recipe.sigAffix };
   return eq;
 }
