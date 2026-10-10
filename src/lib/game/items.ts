@@ -276,7 +276,8 @@ export const AFFIX_NAMES: Record<AffixKey, string> = {
 
 export function formatAffix(key: AffixKey, value: number): string {
   if (key === 'crit' || key === 'dodge') return `+${(value * 100).toFixed(1)}%`;
-  return `+${value}`;
+  // 扁平属性取整 + 千分位，避免炼器乘区产生 2464.0000000000005 之类的浮点尾巴
+  return `+${Math.round(value).toLocaleString('zh-CN')}`;
 }
 
 // ---------- 生产配方 ----------

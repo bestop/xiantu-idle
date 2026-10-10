@@ -290,8 +290,8 @@ function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
             </div>
           ))}
           {eq.sigAffix && (
-            <div className="flex justify-between items-center bg-amber-950/30 border border-amber-900/40 rounded-md px-2 py-1">
-              <span className="text-amber-400/90">✨ 专属词条·{eq.sigAffix.label}</span>
+            <div className="flex justify-between items-center flex-wrap gap-x-2 gap-y-0.5 bg-amber-950/30 border border-amber-900/40 rounded-md px-2 py-1">
+              <span className="text-amber-400/90 shrink-0">✨ 专属词条·{eq.sigAffix.label}</span>
               <span className="text-amber-300 font-semibold">{AFFIX_NAMES[eq.sigAffix.key]} {formatAffix(eq.sigAffix.key, eq.sigAffix.value * refineAffixMult(eq))}{eq.refine ? <span className="text-[9px] text-amber-500 ml-1">（含炼器）</span> : null}</span>
             </div>
           )}

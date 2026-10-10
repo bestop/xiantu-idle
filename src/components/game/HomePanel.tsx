@@ -12,6 +12,7 @@ import { rebirthPrefix } from '@/lib/game/rebirth';
 import { activeTitleName } from '@/lib/game/titles';
 import { Section, ProgressBar, StatPill, ActionButton, formatNum, formatDuration } from './ui-bits';
 import { QUALITY_TEXT } from '@/lib/game/items';
+import { refineMainMult } from '@/lib/game/refine';
 import { ACTIVITY_SCENE, HOME_SCENE } from '@/lib/game/scenes';
 import { cn } from '@/lib/utils';
 
@@ -107,7 +108,7 @@ export function HomePanel() {
               {e ? (
                 <>
                   <div className={`text-[11px] font-medium ${QUALITY_TEXT[e.quality]}`}>{e.icon} {e.name}</div>
-                  <div className="text-[9px] text-stone-500">{e.mainStat.key === 'atk' ? `攻+${e.mainStat.value}` : e.mainStat.key === 'def' ? `防+${e.mainStat.value}` : `血+${e.mainStat.value}`}</div>
+                  <div className="text-[9px] text-stone-500">{e.mainStat.key === 'atk' ? `攻+${Math.round(e.mainStat.value * refineMainMult(e))}` : e.mainStat.key === 'def' ? `防+${Math.round(e.mainStat.value * refineMainMult(e))}` : `血+${Math.round(e.mainStat.value * refineMainMult(e))}`}</div>
                 </>
               ) : (
                 <div className="text-[10px] text-stone-600">{['武器', '护甲', '饰品'][i]}·空</div>
