@@ -90,6 +90,11 @@ export const BASE_ITEMS: BaseItem[] = [
   { id: 'pill_atk', name: '狂暴丹', type: 'pill', icon: '🔴', description: '10 分钟内攻击提升 30%。', quality: 'rare', sellPrice: 400, tier: 3, pillEffect: 'buffAtk', pillValue: 30 },
   { id: 'pill_def', name: '铁骨丹', type: 'pill', icon: '🔵', description: '10 分钟内防御提升 40%。', quality: 'rare', sellPrice: 400, tier: 3, pillEffect: 'buffDef', pillValue: 40 },
   { id: 'pill_exp', name: '悟道丹', type: 'pill', icon: '🌟', description: '服用后 5 项战斗技能各获得大量经验。', quality: 'epic', sellPrice: 1200, tier: 5, pillEffect: 'exp', pillValue: 600 },
+  { id: 'pill_spd', name: '疾风丹', type: 'pill', icon: '💨', description: '10 分钟内速度提升 30%，出手更快闪避更高。', quality: 'rare', sellPrice: 450, tier: 4, pillEffect: 'buffSpd', pillValue: 30 },
+  { id: 'pill_gold', name: '聚财丹', type: 'pill', icon: '🪙', description: '10 分钟内金币收益提升 40%。', quality: 'rare', sellPrice: 500, tier: 4, pillEffect: 'buffGold', pillValue: 40 },
+  { id: 'pill_luck', name: '幸运丹', type: 'pill', icon: '🍀', description: '10 分钟内气运 +15，掉落更丰厚。', quality: 'epic', sellPrice: 900, tier: 5, pillEffect: 'buffLuck', pillValue: 15 },
+  { id: 'pill_cap', name: '捕灵丹', type: 'pill', icon: '🪤', description: '10 分钟内灵宠捕获率 ×1.6，收妖事半功倍。', quality: 'epic', sellPrice: 1000, tier: 5, pillEffect: 'buffCap', pillValue: 160 },
+  { id: 'pill_heal_xl', name: '万年雪参膏', type: 'pill', icon: '💖', description: '恢复巨量气血的传说膏方。', quality: 'epic', sellPrice: 2400, tier: 8, pillEffect: 'heal', pillValue: 4500 },
 
   // ===== 宝藏（寻宝活动）=====
   { id: 'trea_gold', name: '古币', type: 'treasure', icon: '🪙', description: '前朝修士遗留的灵币，可售高价。', quality: 'fine', sellPrice: 200, tier: 1 },
@@ -186,7 +191,7 @@ export function generateEquipment(
   quality: ItemQuality,
   slotHint?: EquipSlot
 ): Equipment {
-  const t = Math.max(1, Math.min(80, Math.round(tier)));
+  const t = Math.max(1, Math.min(120, Math.round(tier)));
   const bases = slotHint ? EQUIP_BASES.filter(b => b.slot === slotHint) : EQUIP_BASES;
   const base = bases[Math.floor(Math.random() * bases.length)];
 
@@ -253,6 +258,7 @@ export function generateEquipment(
     affixes,
     sellPrice,
     createdAt: Date.now(),
+    refine: 0,
   };
 }
 
@@ -322,6 +328,41 @@ export const CRAFT_RECIPES: CraftRecipe[] = [
     materials: [{ itemId: 'herb_4', qty: 1 }, { itemId: 'core_1', qty: 3 }],
     skillXp: 260, minSkillLevel: 70,
     description: '五项战斗技能各获得 600 经验。',
+  },
+  {
+    id: 'cook_spd', name: '疾风丹', icon: '💨', kind: 'cooking',
+    outputItemId: 'pill_spd',
+    materials: [{ itemId: 'herb_1', qty: 3 }, { itemId: 'herb_2', qty: 1 }],
+    skillXp: 55, minSkillLevel: 30,
+    description: '10 分钟内速度 +30%，闪避更高。',
+  },
+  {
+    id: 'cook_gold', name: '聚财丹', icon: '🪙', kind: 'cooking',
+    outputItemId: 'pill_gold',
+    materials: [{ itemId: 'herb_2', qty: 2 }, { itemId: 'core_1', qty: 1 }],
+    skillXp: 75, minSkillLevel: 35,
+    description: '10 分钟内金币收益 +40%。',
+  },
+  {
+    id: 'cook_luck', name: '幸运丹', icon: '🍀', kind: 'cooking',
+    outputItemId: 'pill_luck',
+    materials: [{ itemId: 'herb_3', qty: 1 }, { itemId: 'core_1', qty: 1 }],
+    skillXp: 110, minSkillLevel: 45,
+    description: '10 分钟内气运 +15，掉落品质与概率双提升。',
+  },
+  {
+    id: 'cook_cap', name: '捕灵丹', icon: '🪤', kind: 'cooking',
+    outputItemId: 'pill_cap',
+    materials: [{ itemId: 'herb_3', qty: 1 }, { itemId: 'herb_1', qty: 5 }],
+    skillXp: 150, minSkillLevel: 55,
+    description: '10 分钟内灵宠捕获率 ×1.6，收妖必备。',
+  },
+  {
+    id: 'cook_heal_xl', name: '万年雪参膏', icon: '💖', kind: 'cooking',
+    outputItemId: 'pill_heal_xl',
+    materials: [{ itemId: 'herb_4', qty: 1 }, { itemId: 'herb_3', qty: 2 }],
+    skillXp: 240, minSkillLevel: 70,
+    description: '恢复 4500 点气血的传说膏方。',
   },
   // ===== 锻造（矿石 → 随机装备，等级决定装备阶级） =====
   {

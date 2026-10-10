@@ -6,13 +6,13 @@ import { useGameStore } from '@/store/game';
 import { REGIONS, getMonstersByRegion, MONSTER_MAP } from '@/lib/game/monsters';
 import { WORLD_BOSSES } from '@/lib/game/worldboss';
 import { computePlayerStats, rollDrops, simulateRound } from '@/lib/game/engine';
-import { PlayerStats, MonsterDef, BattleLogLine, BattleRewards, CombatantState } from '@/types/game';
+import { PlayerStats, MonsterDef, BattleLogLine, BattleRewards, CombatantState, ActiveBuffKey } from '@/types/game';
 import { Section, ActionButton, ProgressBar, formatNum, QualityBadge } from './ui-bits';
 import { getItem, QUALITY_TEXT } from '@/lib/game/items';
 import { pillMultiplier } from '@/lib/game/skills';
 import { REGION_SCENE } from '@/lib/game/scenes';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, Play, Zap, Heart, Timer } from 'lucide-react';
+import { ChevronLeft, Play, Zap, Heart } from 'lucide-react';
 
 interface BattleState {
   monsterId: string;
@@ -29,9 +29,19 @@ interface BattleState {
 
 let logId = 0;
 
+// 丹药 buff 展示元数据
+const BUFF_META: Record<ActiveBuffKey, { name: string; icon: string }> = {
+  atk: { name: '攻击', icon: '🔴' },
+  def: { name: '防御', icon: '🔵' },
+  spd: { name: '速度', icon: '💨' },
+  gold: { name: '金币', icon: '🪙' },
+  luck: { name: '气运', icon: '🍀' },
+  cap: { name: '捕获', icon: '🪤' },
+};
+
 export function CombatPanel() {
   const store = useGameStore();
-  const playerStats = useMemo(() => computePlayerStats(store), [store.skills, store.equipped, store.buffExpireAt, store.activeBattleBuffAtk, store.activePetUid, store.pets]);
+  const playerStats = useMemo(() => computePlayerStats(store), [store.skills, store.equipped, store.activeBuffs, store.activePetUid, store.pets]);
 
   const [regionId, setRegionId] = useState(store.lastRegionId);
   const [battle, setBattle] = useState<BattleState | null>(null);
@@ -210,7 +220,8 @@ export function CombatPanel() {
     .reduce((a, id) => a + store.skills[id].level, 0) / 5;
   const currentTier = Math.round(avgCombat / 5);
   const monster = battle ? MONSTER_MAP[battle.monsterId] : null;
-  const buffLeft = store.buffExpireAt > Date.now() ? Math.ceil((store.buffExpireAt - Date.now()) / 1000) : 0;
+  const nowTs = Date.now();
+  const activeBuffs = (store.activeBuffs ?? []).filter(b => b.expireAt > nowTs);
   const regionScene = REGION_SCENE[regionId];
 
   // ===== 战斗视图 =====
@@ -376,9 +387,21 @@ export function CombatPanel() {
             store.autoBattleEnabled ? 'translate-x-[24px]' : 'translate-x-[4px]')} />
         </span>
       </button>
-      {buffLeft > 0 && (
-        <div className="flex items-center justify-center gap-1 text-[10px] text-rose-300">
-          <Timer className="w-3 h-3" /> 丹药加成剩余 {Math.floor(buffLeft / 60)}分{buffLeft % 60}秒
+      {activeBuffs.length > 0 && (
+        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+          {activeBuffs.map(b => {
+            const meta = BUFF_META[b.key];
+            const left = Math.ceil((b.expireAt - nowTs) / 1000);
+            const val = b.key === 'luck' ? `气运 +${b.value}`
+              : b.key === 'cap' ? `捕获 ×${(b.value / 100).toFixed(1)}`
+              : `${meta.name} +${b.value}%`;
+            return (
+              <span key={b.key} className="inline-flex items-center gap-1 bg-stone-900/90 border border-amber-800/70 rounded-full px-2 py-1 text-[10px] text-amber-200 tabular-nums">
+                <span aria-hidden>{meta.icon}</span>{val}
+                <span className="text-stone-500">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>
+              </span>
+            );
+          })}
         </div>
       )}
 

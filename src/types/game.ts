@@ -92,8 +92,8 @@ export interface BaseItem {
   icon: string;
   description: string;
   quality: ItemQuality;
-  // 丹药效果
-  pillEffect?: 'heal' | 'exp' | 'buffAtk' | 'buffDef';
+  // 丹药效果（buff 类：atk/def/spd/gold/luck/cap，heal/exp 为即时型）
+  pillEffect?: 'heal' | 'exp' | 'buffAtk' | 'buffDef' | 'buffSpd' | 'buffGold' | 'buffLuck' | 'buffCap';
   pillValue?: number;
   // 基础卖价
   sellPrice: number;
@@ -105,6 +105,16 @@ export type EquipSlot = 'weapon' | 'armor' | 'accessory';
 
 // 装备随机副词条
 export type AffixKey = 'atk' | 'def' | 'hp' | 'crit' | 'dodge' | 'luck' | 'speed';
+
+// 丹药临时 buff：value 语义随 key 变化 ——
+// atk/def/spd/gold：百分比 +30 → 乘区 1.30；luck：气运面板值 +15；cap：捕获率乘区 ×100（如 160 → ×1.6）
+export type ActiveBuffKey = 'atk' | 'def' | 'spd' | 'gold' | 'luck' | 'cap';
+
+export interface ActiveBuff {
+  key: ActiveBuffKey;
+  value: number;
+  expireAt: number;
+}
 
 export interface EquipAffix {
   key: AffixKey;
@@ -284,7 +294,7 @@ export interface RebirthState {
 export type MoreViewId =
   | 'root' | 'shop' | 'achievements' | 'codex'
   | 'pets' | 'worldboss' | 'leaderboard'
-  | 'sect' | 'rebirth'
+  | 'sect' | 'rebirth' | 'album'
   | 'settings';
 
 // ---------- 成就 ----------
@@ -361,8 +371,8 @@ export interface GameState {
   // 战斗
   lastRegionId: string;
   autoBattleEnabled: boolean;
-  activeBattleBuffAtk: number; // 丹药临时加成 到期时间戳
-  buffExpireAt: number;
+  // 丹药临时 buff（可多系并存；旧存档由 markHydrated 从 activeBattleBuffAtk/buffExpireAt 迁移）
+  activeBuffs: ActiveBuff[];
 
   // 成就
   achievements: Record<string, AchievementState>;

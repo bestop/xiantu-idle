@@ -19,22 +19,22 @@ export interface SectDef {
 export const SECTS: SectDef[] = [
   {
     id: 'sword', name: '青云剑宗', icon: '⚔️', motto: '一剑破万法',
-    bonusName: '剑意通明', bonusDesc: '战斗技能经验 +8%，宗门等级每级再 +1%',
+    bonusName: '剑意通明', bonusDesc: '战斗技能经验 +12%，宗门等级每级再 +1%',
     tone: 'text-cyan-300 bg-cyan-950/60 border-cyan-900/50',
   },
   {
     id: 'alchemy', name: '丹霞谷', icon: '⚗️', motto: '丹火不熄，大道可期',
-    bonusName: '丹火温养', bonusDesc: '离线修炼效率 +10%（与定力加成叠加）',
+    bonusName: '丹火温养', bonusDesc: '离线修炼效率 +15%（与定力加成叠加）',
     tone: 'text-emerald-300 bg-emerald-950/60 border-emerald-900/50',
   },
   {
     id: 'beast', name: '万兽门', icon: '🐾', motto: '与兽同行，其利断金',
-    bonusName: '兽魂契约', bonusDesc: '灵宠出战属性加成 +25%',
+    bonusName: '兽魂契约', bonusDesc: '灵宠出战属性加成 +30%',
     tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50',
   },
   {
     id: 'vault', name: '万宝楼', icon: '💰', motto: '修仙也要吃饭',
-    bonusName: '点石成金', bonusDesc: '金币收益 +20%（战斗与挂机皆生效）',
+    bonusName: '点石成金', bonusDesc: '金币收益 +25%（战斗与挂机皆生效）',
     tone: 'text-rose-300 bg-rose-950/60 border-rose-900/50',
   },
 ];
@@ -50,12 +50,12 @@ export const SECT_RANKS: { min: number; key: string; name: string }[] = [
   { min: 2000, key: 'true', name: '真传弟子' },
 ];
 
-export function sectRank(contrib: number): { key: string; name: string } {
+export function sectRank(contrib: number): { key: string; name: string; min: number } {
   let r = SECT_RANKS[0];
   for (const rank of SECT_RANKS) {
     if (contrib >= rank.min) r = rank;
   }
-  return { key: r.key, name: r.name };
+  return { key: r.key, name: r.name, min: r.min };
 }
 
 export function sectTitleId(sectId: SectId, rankKey: string): string {

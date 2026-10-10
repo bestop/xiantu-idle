@@ -21,15 +21,17 @@ export const PET_STAGES: { prefix: string; name: string; desc: string; mult: num
 ];
 
 // 进化需求：每阶段需宠物等级 + 金币 + 妖丹（stage 从 0→1，1→2，2→3）
+// 数值平衡 v2：金币 = (基础 + 阶位×系数) × 阶段指数，低阶妖兽不再白给、高阶略有回落；
+// 妖丹按妖兽阶位缩放（tier 50 时 ×2），高血脉进化更贵重
 export function petEvolveReq(pet: PetInstance): { level: number; gold: number; core: number; gems: number } {
   const m = MONSTER_MAP[pet.monsterId];
   const tier = Math.max(1, m.tier);
   const nextStage = pet.stage + 1;
   return {
     level: [30, 60, 100][pet.stage] ?? 999,
-    gold: Math.round(tier * 1200 * Math.pow(2.4, pet.stage)),
-    core: [3, 8, 15][pet.stage] ?? 999,
-    gems: nextStage >= 3 ? 20 : 0,
+    gold: Math.round((1500 + tier * 900) * Math.pow(2.5, pet.stage)),
+    core: Math.max(1, Math.round(([3, 8, 15][pet.stage] ?? 999) * (1 + tier / 50))),
+    gems: nextStage >= 3 ? 25 : 0,
   };
 }
 

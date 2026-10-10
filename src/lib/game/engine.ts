@@ -4,7 +4,7 @@
 
 import {
   GameState, PlayerStats, MonsterDef, BattleRewards, Equipment,
-  SkillId, OfflineReport, ActivityId, InvItem, EquipSlots, COMBAT_SKILLS,
+  SkillId, OfflineReport, ActivityId, InvItem, EquipSlots, COMBAT_SKILLS, ActiveBuffKey,
 } from '@/types/game';
 import { xpMultiplier, dropMultiplier, critBonus, equipDropBonus, gatherTier, xpToNext, offlineEfficiency, offlineCapSeconds, ACTIVITY_MAP } from './skills';
 import { generateEquipment, rollQuality, getItem, genUid } from './items';
@@ -33,7 +33,30 @@ export function equipTotals(equipped: EquipSlots) {
   return totals;
 }
 
-// ---------- 宗门 / 转生 全局加成 ----------
+// ---------- 宗门 / 转生 / 丹药 buff 全局加成 ----------
+
+// 生效中的指定类型 buff 乘区（atk/def/spd/gold：百分比；cap：×value/100；luck 为加算，勿用此函数）
+export function activeBuffMult(state: GameState, key: ActiveBuffKey): number {
+  const now = Date.now();
+  let mult = 1;
+  for (const b of state.activeBuffs ?? []) {
+    if (b.key === key && b.expireAt > now) {
+      if (key === 'cap') mult *= b.value / 100;
+      else mult += b.value / 100;
+    }
+  }
+  return mult;
+}
+
+// 生效中的加算 buff 值（luck：面板气运直接加值）
+export function activeBuffFlat(state: GameState, key: ActiveBuffKey): number {
+  const now = Date.now();
+  let sum = 0;
+  for (const b of state.activeBuffs ?? []) {
+    if (b.key === key && b.expireAt > now) sum += b.value;
+  }
+  return sum;
+}
 
 // 技能经验额外乘区：转生点数（+1%/点） + 宗门剑修加成（含宗门等级）
 export function stateXpMult(state: GameState): number {
@@ -41,23 +64,26 @@ export function stateXpMult(state: GameState): number {
   let mult = 1 + points * BONUS_XP_PER_POINT;
   if (state.sect?.sectId === 'sword') {
     const { level } = getSectMembers(state);
-    mult += 0.08 + sectLevelBonus(level);
+    mult += 0.12 + sectLevelBonus(level);
   }
   return mult;
 }
 
-// 金币收益乘区：万宝楼 +20%（含宗门等级）
+// 金币收益乘区：万宝楼 +25%（含宗门等级） × 聚财丹 buff
 export function stateGoldMult(state: GameState): number {
-  if (state.sect?.sectId !== 'vault') return 1;
-  const { level } = getSectMembers(state);
-  return 1.2 + sectLevelBonus(level);
+  let mult = 1;
+  if (state.sect?.sectId === 'vault') {
+    const { level } = getSectMembers(state);
+    mult += 0.25 + sectLevelBonus(level);
+  }
+  return mult * activeBuffMult(state, 'gold');
 }
 
-// 灵宠加成乘区：万兽门 +25%（含宗门等级）
+// 灵宠加成乘区：万兽门 +30%（含宗门等级）
 export function statePetMult(state: GameState): number {
   if (state.sect?.sectId !== 'beast') return 1;
   const { level } = getSectMembers(state);
-  return 1.25 + sectLevelBonus(level);
+  return 1.3 + sectLevelBonus(level);
 }
 
 // 离线效率（含宗门丹霞谷加成）
@@ -66,7 +92,7 @@ export function computeOfflineEfficiency(state: GameState): number {
   let eff = offlineEfficiency(focus);
   if (state.sect?.sectId === 'alchemy') {
     const { level } = getSectMembers(state);
-    eff = Math.min(1, eff + 0.1 + sectLevelBonus(level));
+    eff = Math.min(1, eff + 0.15 + sectLevelBonus(level));
   }
   return Math.min(1, eff);
 }
@@ -76,9 +102,11 @@ export function computePlayerStats(state: GameState): PlayerStats {
   const lv = (id: SkillId) => s[id]?.level ?? 0;
   const eq = equipTotals(state.equipped);
 
-  // 丹药 buff
-  const buffActive = state.buffExpireAt > Date.now();
-  const buffAtk = buffActive ? state.activeBattleBuffAtk : 0;
+  // 丹药 buff（多系并存：攻/防/速百分比，气运加算）
+  const buffAtkPct = activeBuffMult(state, 'atk') - 1;
+  const buffDefPct = activeBuffMult(state, 'def') - 1;
+  const buffSpdPct = activeBuffMult(state, 'spd') - 1;
+  const buffLuck = activeBuffFlat(state, 'luck');
 
   // 出战灵宠加成（含宗门万兽门乘区）
   const activePet = state.activePetUid
@@ -97,12 +125,13 @@ export function computePlayerStats(state: GameState): PlayerStats {
 
   const maxHp = Math.round((40 + lv('hp') * 12 + eq.hp + pb.hp) * rebirthMult);
   let atk = 6 + lv('power') * 2 + lv('weaponry') * 1 + eq.atk + pb.atk;
-  atk = Math.round(atk * (1 + buffAtk / 100) * rebirthMult);
-  const def = Math.round(3 + lv('defence') * 1.5 + eq.def + pb.def);
-  const speed = Math.round(5 + lv('speed') * 0.5 + eq.speed);
+  atk = Math.round(atk * (1 + buffAtkPct) * rebirthMult);
+  let def = 3 + lv('defence') * 1.5 + eq.def + pb.def;
+  def = Math.round(def * (1 + buffDefPct)); // 修复：铁骨丹防御 buff 此前未生效
+  const speed = Math.round((5 + lv('speed') * 0.5 + eq.speed) * (1 + buffSpdPct));
   const critRate = Math.min(0.6, 0.05 + critBonus(lv('insight')) + eq.crit);
   const dodgeRate = Math.min(0.35, Math.max(0, (speed - 5) * 0.001) + eq.dodge);
-  const luck = eq.luck + lv('luck');
+  const luck = eq.luck + lv('luck') + buffLuck;
 
   return { maxHp, atk, def, speed, critRate, dodgeRate, luck };
 }
@@ -177,9 +206,10 @@ export function rollDrops(monster: MonsterDef, state: GameState, luckStat: numbe
   // 宝石小概率
   const gems = Math.random() < 0.02 * luckMult ? 1 : 0;
 
-  // 灵宠捕获判定（气运越高越容易；妖王更难收服）
+  // 灵宠捕获判定（气运越高越容易；妖王更难收服；捕灵丹乘区）
   const luckSkill = state.skills.luck?.level ?? 0;
-  const capChance = Math.min(0.3, (0.035 + luckStat * 0.0006 + luckSkill * 0.0004) * (monster.isBoss ? 0.3 : 1));
+  const capMult = activeBuffMult(state, 'cap');
+  const capChance = Math.min(0.5, (0.035 + luckStat * 0.0006 + luckSkill * 0.0004) * (monster.isBoss ? 0.3 : 1) * capMult);
   const petCapture = Math.random() < capChance ? monster.id : undefined;
 
   return { exp: monster.exp, gold: monster.gold, items, equips, cards, gems, petCapture };
@@ -416,9 +446,13 @@ export function getShopEntries(): { itemId: string; price: number; currency: 'go
     { itemId: 'pill_heal_m', price: 400, currency: 'gold', label: '回春散' },
     { itemId: 'pill_atk', price: 1200, currency: 'gold', label: '狂暴丹' },
     { itemId: 'pill_def', price: 1200, currency: 'gold', label: '铁骨丹' },
+    { itemId: 'pill_spd', price: 1200, currency: 'gold', label: '疾风丹' },
+    { itemId: 'pill_gold', price: 1500, currency: 'gold', label: '聚财丹' },
     { itemId: 'herb_1', price: 40, currency: 'gold', label: '灵草×5' },
     { itemId: 'pill_exp', price: 30, currency: 'gem', label: '悟道丹' },
     { itemId: 'pill_heal_l', price: 15, currency: 'gem', label: '九转还魂丹' },
+    { itemId: 'pill_luck', price: 22, currency: 'gem', label: '幸运丹' },
+    { itemId: 'pill_cap', price: 25, currency: 'gem', label: '捕灵丹' },
   ];
 }
 

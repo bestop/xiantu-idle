@@ -58,6 +58,14 @@ export const SCENES: SceneDef[] = [
     id: 'region-r8', kind: 'region', refId: 'r8', name: '九天秘境', img: '/scenes/region-r8.jpg',
     caption: '云海之上，古殿的钟声响了很久。',
   },
+  {
+    id: 'region-r9', kind: 'region', refId: 'r9', name: '归墟海', img: '/scenes/region-r9.jpg',
+    caption: '海眼很深，气泡替我把愿望带下去。',
+  },
+  {
+    id: 'region-r10', kind: 'region', refId: 'r10', name: '仙墟', img: '/scenes/region-r10.jpg',
+    caption: '断剑插了千年，还在等一个提剑的人。',
+  },
   // ---- 11 活动 ----
   {
     id: 'act-mining', kind: 'activity', refId: 'mining', name: '灵山采矿', img: '/scenes/act-mining.jpg',
@@ -182,7 +190,7 @@ export interface AlbumReward {
 export const ALBUM_REWARDS: AlbumReward[] = [
   { id: 'album_home', kind: 'home', name: '洞府常客', gems: 10, desc: '收录「我的洞府」全部分页' },
   { id: 'album_boss', kind: 'boss', name: '直面巨兽', gems: 10, desc: '收录「强敌之影」全部分页' },
-  { id: 'album_region', kind: 'region', name: '山河行者', gems: 30, titleId: 'title_shanhe', titleName: '山河行者', desc: '收录「行走山河」全部 8 张明信片' },
+  { id: 'album_region', kind: 'region', name: '山河行者', gems: 30, titleId: 'title_shanhe', titleName: '山河行者', desc: '收录「行走山河」全部 10 张明信片' },
   { id: 'album_activity', kind: 'activity', name: '修行百艺', gems: 40, titleId: 'title_baiyi', titleName: '百艺修士', desc: '收录「修行手记」全部 11 张明信片' },
   { id: 'album_grand', kind: 'grand', name: '画圣·山河印心', gems: 100, titleId: 'title_huasheng', titleName: '画圣·山河印心', desc: '集齐整本山河画册（限定称号）' },
 ];

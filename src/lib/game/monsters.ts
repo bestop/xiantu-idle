@@ -1,5 +1,5 @@
 // ============================================
-// 区域与怪物图鉴（8 区域 × 12 妖兽 + 8 大 BOSS = 104）
+// 区域与怪物图鉴（10 区域 × 12 妖兽 + 10 大 BOSS = 130）
 // ============================================
 
 import { MonsterDef, RegionDef } from '@/types/game';
@@ -13,6 +13,8 @@ export const REGIONS: RegionDef[] = [
   { id: 'r6', name: '寒冰原', icon: '❄️', minTier: 50, description: '万里冰封的极北之地，冰魄寒气蚀骨。' },
   { id: 'r7', name: '雷罚之地', icon: '⚡', minTier: 60, description: '九天雷罚终年轰鸣，非大毅力者不能踏足。' },
   { id: 'r8', name: '九天秘境', icon: '🏯', minTier: 70, description: '上古大能洞府遗址，机缘无数，凶险莫测。' },
+  { id: 'r9', name: '归墟海', icon: '🌀', minTier: 85, description: '众水汇聚的无底深渊，海眼之下沉睡着上古遗骸。' },
+  { id: 'r10', name: '仙墟', icon: '⛩️', minTier: 100, description: '上古仙战之地，断剑残碑间游荡着不敬的仙魂。' },
 ];
 
 // 每区域 12 只常规妖兽名字
@@ -25,10 +27,12 @@ const MONSTER_NAMES: Record<string, string[]> = {
   r6: ['冰晶狼', '雪原巨熊', '寒潭蛟龙', '冰甲甲虫', '霜降火狐', '雪山冰女', '冰魄蛇', '玄冰灵龟', '凛风霜鹰', '白毛雪怪', '九彩冰蚕', '寒潭玄鸦'],
   r7: ['紫霄雷鹰', '引雷天貂', '雷纹赤虎', '霹雳雷虫', '引雷幡傀儡', '雷泽蛟龙', '奔雷巨兽', '电光灵梭', '雷煞鬼将', '九霄雷蛇', '震地雷犀', '雷火天蝎'],
   r8: ['秘境石卫', '天兵残魂', '金甲力士', '星辰傀儡', '银河锦鲤', '九天玄鸟', '石像神卫', '虚空游魂', '天雷木灵', '混元灵兽', '守阁剑灵', '周天星君影'],
+  r9: ['渊影鲛人', '沉舟水魅', '深海龙蛭', '墨涛巨鱿', '幽壑鲸灵', '溺海亡歌', '漩涡妖灵', '碧涛海妖', '珊瑚老祖', '深流电鳗', '沧渊之目', '归墟潮兽'],
+  r10: ['碎甲仙兵', '断剑剑灵', '残碑石魂', '云辇遗骏', '仙宫灯守', '坠星铁骑', '金阙卫队', '焚香玉女', '镇碑武卒', '半仙傀儡', '遗诏天使', '仙池锦鲤'],
 };
 
 const MONSTER_ICONS: Record<string, string> = {
-  r1: '🐺', r2: '🐻', r3: '👻', r4: '🔥', r5: '🦊', r6: '🐻‍❄️', r7: '🦅', r8: '🗿',
+  r1: '🐺', r2: '🐻', r3: '👻', r4: '🔥', r5: '🦊', r6: '🐻‍❄️', r7: '🦅', r8: '🗿', r9: '🐙', r10: '⛩️',
 };
 
 const BOSSES: Record<string, { name: string; icon: string }> = {
@@ -40,6 +44,8 @@ const BOSSES: Record<string, { name: string; icon: string }> = {
   r6: { name: '冰封古帝', icon: '🧊' },
   r7: { name: '九霄雷尊', icon: '🌩️' },
   r8: { name: '天道化身', icon: '☯️' },
+  r9: { name: '归墟之主', icon: '🐙' },
+  r10: { name: '仙帝残影', icon: '🕯️' },
 };
 
 // 各区域掉落表
@@ -91,6 +97,20 @@ const REGION_DROPS: Record<string, { itemId: string; rate: number; qty?: number 
     { itemId: 'core_1', rate: 0.18 },
     { itemId: 'pill_exp', rate: 0.06 },
     { itemId: 'pill_heal_l', rate: 0.09 },
+  ],
+  r9: [
+    { itemId: 'core_1', rate: 0.2 },
+    { itemId: 'herb_4', rate: 0.08 },
+    { itemId: 'pill_gold', rate: 0.05 },
+    { itemId: 'pill_cap', rate: 0.05 },
+    { itemId: 'pill_heal_l', rate: 0.1 },
+  ],
+  r10: [
+    { itemId: 'herb_4', rate: 0.1 },
+    { itemId: 'core_1', rate: 0.22 },
+    { itemId: 'pill_exp', rate: 0.07 },
+    { itemId: 'pill_luck', rate: 0.05 },
+    { itemId: 'pill_heal_xl', rate: 0.06 },
   ],
 };
 

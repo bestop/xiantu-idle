@@ -24,10 +24,10 @@ export function refineCost(eq: Equipment): { oreId: string; oreQty: number; gold
   };
 }
 
-// 成功率：+0 时 95%，每级 -5%，最低 45%
+// 成功率：+0 时 95%，每级 -4%，最低 55%（平衡 v2：终段更友好）
 export function refineSuccessRate(eq: Equipment): number {
   const refine = eq.refine ?? 0;
-  return Math.max(0.45, 0.95 - refine * 0.05);
+  return Math.max(0.55, 0.95 - refine * 0.04);
 }
 
 // 主属性倍率

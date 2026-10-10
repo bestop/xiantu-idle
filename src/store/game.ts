@@ -9,7 +9,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   GameState, SkillId, ActivityId, TabId, BattleRewards, EquipSlot,
   Equipment, OfflineReport, InvItem, AchievementState, MoreViewId,
-  PlayerSectState, SectId,
+  PlayerSectState, SectId, ActiveBuff, ActiveBuffKey,
 } from '@/types/game';
 import { ACTIVITY_MAP, xpToNext, gatherTier, combatLevelSum } from '@/lib/game/skills';
 import {
@@ -71,8 +71,7 @@ const initialState: GameState = {
   cards: {},
   lastRegionId: 'r1',
   autoBattleEnabled: false,
-  activeBattleBuffAtk: 0,
-  buffExpireAt: 0,
+  activeBuffs: [],
   achievements: {},
   stats: initialStats(),
   pets: [],
@@ -200,11 +199,20 @@ export const useGameStore = create<GameStore>()(
         }
         const rebirth = normalizeRebirth(s.rebirth);
         const tn = normalizeTitles(s);
+        // 旧存档 buff 迁移：activeBattleBuffAtk/buffExpireAt → activeBuffs（并丢弃已过期）
+        const now = Date.now();
+        let buffs: ActiveBuff[] = (s.activeBuffs ?? []).filter(b => b && b.expireAt > now);
+        const legacyAtk = (s as unknown as { activeBattleBuffAtk?: number }).activeBattleBuffAtk ?? 0;
+        const legacyExpire = (s as unknown as { buffExpireAt?: number }).buffExpireAt ?? 0;
+        if (legacyAtk > 0 && legacyExpire > now && !buffs.some(b => b.key === 'atk')) {
+          buffs = [...buffs, { key: 'atk', value: legacyAtk, expireAt: legacyExpire }];
+        }
         set({
           hydrated: true, stats, worldBoss, pets, equips, rebirth,
           titles: tn.titles, activeTitle: tn.activeTitle,
           albumClaims: s.albumClaims ?? [],
           sect: s.sect ?? null,
+          activeBuffs: buffs,
         });
         get().syncAutoTitles();
         get().settleOffline();
@@ -243,6 +251,11 @@ export const useGameStore = create<GameStore>()(
         const deltaSec = Math.max(0, (now - state.lastTick) / 1000);
         // 超过 90 秒的空窗交给 settleOffline（页面可见性恢复）处理
         if (deltaSec > 90) { set({ lastTick: now }); return; }
+
+        // 过期丹药 buff 清理（轻量：仅在确有过期时写回）
+        if ((state.activeBuffs ?? []).some(b => b.expireAt <= now)) {
+          set({ activeBuffs: state.activeBuffs.filter(b => b.expireAt > now) });
+        }
 
         let gold = state.gold;
         let gems = state.gems;
@@ -421,16 +434,22 @@ export const useGameStore = create<GameStore>()(
           get().checkAchievements();
           return message;
         }
-        // buff 类
-        const buffPct = item.pillEffect === 'buffAtk' ? (item.pillValue ?? 30) : (item.pillValue ?? 40);
-        const buffAtk = item.pillEffect === 'buffAtk' ? buffPct : 0;
-        set({
-          activeBattleBuffAtk: buffAtk || state.activeBattleBuffAtk,
-          buffExpireAt: Date.now() + 10 * 60 * 1000,
-          inventory: removeItem(state.inventory, itemId, 1),
-        });
-        message = `服下${item.name}，${item.pillEffect === 'buffAtk' ? '攻击' : '防御'}提升 ${buffPct}%（10 分钟）`;
-        return message;
+        // buff 类：写入多 buff 队列（同类刷新时长；攻防速金为百分比，气运加算，捕获为乘区）
+        const buffKeyMap: Record<string, ActiveBuffKey> = {
+          buffAtk: 'atk', buffDef: 'def', buffSpd: 'spd',
+          buffGold: 'gold', buffLuck: 'luck', buffCap: 'cap',
+        };
+        const bKey = buffKeyMap[item.pillEffect];
+        if (!bKey) return '该物品无法使用';
+        const bValue = item.pillValue ?? 30;
+        const now = Date.now();
+        const others = (state.activeBuffs ?? []).filter(b => b.expireAt > now && b.key !== bKey);
+        const activeBuffs: ActiveBuff[] = [...others, { key: bKey, value: bValue, expireAt: now + 10 * 60 * 1000 }];
+        set({ activeBuffs, inventory: removeItem(state.inventory, itemId, 1) });
+        const pctDesc = bKey === 'luck' ? `气运 +${bValue}`
+          : bKey === 'cap' ? `灵宠捕获率 ×${(bValue / 100).toFixed(1)}`
+          : `${{ atk: '攻击', def: '防御', spd: '速度', gold: '金币收益' }[bKey]} +${bValue}%`;
+        return `服下${item.name}，${pctDesc}（10 分钟）`;
       },
 
       equipGear: (uid) => {
@@ -780,8 +799,7 @@ export const useGameStore = create<GameStore>()(
           rebirth,
           activeActivity: null,
           activityProgress: 0,
-          activeBattleBuffAtk: 0,
-          buffExpireAt: 0,
+          activeBuffs: [],
           titles,
         });
         get().showToast(`☸️ 转生功成！获得 ${gain} 点转生点（经验 +${gain}%，攻血 +${(gain * 0.5).toFixed(0)}%）`);
