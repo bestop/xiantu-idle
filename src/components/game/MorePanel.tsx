@@ -320,9 +320,23 @@ function CodexView({ onBack }: { onBack: () => void }) {
           const has = count > 0;
           return (
             <div key={m.id}
-              className={cn('rounded-xl border p-2.5 text-center',
-                has ? 'bg-stone-900/80 border-stone-700' : 'bg-stone-950/60 border-stone-800/50')}>
-              <div className={cn('text-2xl', has ? '' : 'opacity-20 grayscale')} aria-hidden>{m.icon}</div>
+              className={cn('rounded-xl border p-2 text-center',
+                has
+                  ? m.isBoss
+                    ? 'bg-gradient-to-b from-amber-950/40 to-stone-900/80 border-amber-800/60'
+                    : 'bg-stone-900/80 border-stone-700'
+                  : 'bg-stone-950/60 border-stone-800/50')}>
+              <div className="relative aspect-square rounded-lg overflow-hidden bg-stone-900/60">
+                <img src={`/monsters/${m.id}.jpg`} alt={has ? m.name : '未知妖兽'} loading="lazy"
+                  className={cn('w-full h-full object-cover transition-all duration-300',
+                    has ? '' : 'brightness-[0.16] saturate-0 blur-[2px] scale-110')} />
+                {!has && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xl text-stone-600" aria-hidden>？</span>
+                )}
+                {m.isBoss && has && (
+                  <span className="absolute top-1 left-1 text-[8px] px-1 py-0.5 rounded bg-amber-950/85 border border-amber-700/60 text-amber-300">妖王</span>
+                )}
+              </div>
               <div className={cn('text-[10px] mt-1 truncate', has ? 'text-stone-300' : 'text-stone-600')}>
                 {has ? m.name : '？？？'}
               </div>

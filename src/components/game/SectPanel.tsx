@@ -48,27 +48,34 @@ export function SectPanel({ onBack }: { onBack: () => void }) {
             </div>
             <div className="space-y-2">
               {SECTS.map(s => (
-                <div key={s.id} className={cn('rounded-xl border p-3 bg-stone-900/80', s.tone.split(' ')[2])}>
-                  <div className="flex items-center gap-2.5">
-                    <span className={cn('w-10 h-10 rounded-lg border flex items-center justify-center shrink-0', s.tone)} aria-hidden>
-                      {SECT_ICONS[s.id]}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-stone-200">{s.name}</div>
-                      <div className="text-[10px] text-stone-500">「{s.motto}」 · {sectScaleHint(s.id)}</div>
+                <div key={s.id} className={cn('rounded-xl border overflow-hidden bg-stone-900/80', s.tone.split(' ')[2])}>
+                  <div className="relative h-20">
+                    <img src={`/sects/sect-${s.id}.jpg`} alt={`${s.name}画卷`} loading="lazy" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/25 to-transparent" />
+                    <div className="absolute bottom-1.5 left-3 flex items-center gap-2">
+                      <span className={cn('w-8 h-8 rounded-lg border flex items-center justify-center bg-stone-950/85 shrink-0', s.tone)} aria-hidden>
+                        {SECT_ICONS[s.id]}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-amber-100 drop-shadow">{s.name}</div>
+                        <div className="text-[10px] text-stone-400 drop-shadow truncate">「{s.motto}」</div>
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-2 text-[11px] text-stone-400">
-                    传承异能 <b className={s.tone.split(' ')[0]}>{s.bonusName}</b>：{s.bonusDesc}
-                  </div>
-                  {pendingId === s.id ? (
-                    <div className="grid grid-cols-2 gap-2 mt-2.5">
-                      <ActionButton className="!min-h-[38px] text-xs" onClick={() => { store.joinSect(s.id); setPendingId(null); }}>确认拜入</ActionButton>
-                      <ActionButton variant="ghost" className="!min-h-[38px] text-xs" onClick={() => setPendingId(null)}>再想想</ActionButton>
+                  <div className="p-3 pt-2">
+                    <div className="text-[10px] text-stone-500">{sectScaleHint(s.id)}</div>
+                    <div className="mt-1.5 text-[11px] text-stone-400">
+                      传承异能 <b className={s.tone.split(' ')[0]}>{s.bonusName}</b>：{s.bonusDesc}
                     </div>
-                  ) : (
-                    <ActionButton className="w-full !min-h-[38px] text-xs mt-2.5" onClick={() => setPendingId(s.id)}>拜入{s.name}</ActionButton>
-                  )}
+                    {pendingId === s.id ? (
+                      <div className="grid grid-cols-2 gap-2 mt-2.5">
+                        <ActionButton className="!min-h-[38px] text-xs" onClick={() => { store.joinSect(s.id); setPendingId(null); }}>确认拜入</ActionButton>
+                        <ActionButton variant="ghost" className="!min-h-[38px] text-xs" onClick={() => setPendingId(null)}>再想想</ActionButton>
+                      </div>
+                    ) : (
+                      <ActionButton className="w-full !min-h-[38px] text-xs mt-2.5" onClick={() => setPendingId(s.id)}>拜入{s.name}</ActionButton>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -97,33 +104,38 @@ function SectHome({ confirmLeave, setConfirmLeave, flash }: {
   return (
     <>
       {/* 宗门卡 */}
-      <div className={cn('rounded-xl border bg-gradient-to-br from-stone-900 to-stone-950 p-4 relative overflow-hidden', def.tone.split(' ')[2])}>
-        <div aria-hidden className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-amber-600/8 blur-2xl pointer-events-none" />
-        <div className="flex items-center gap-3 relative">
-          <div className="w-14 h-14 rounded-full border border-stone-700 bg-stone-950/60 flex items-center justify-center shrink-0">
-            <span className="text-3xl animate-float" aria-hidden>{def.icon}</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-lg font-bold text-amber-100">{def.name}</div>
-            <div className="text-[10px] text-stone-500 mt-0.5">「{def.motto}」 · 宗门等级 {info.level}</div>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-          <div className="bg-stone-900/70 rounded-lg py-1.5">
-            <div className="text-[9px] text-stone-500">可用贡献</div>
-            <div className="text-xs text-amber-300 font-semibold tabular-nums">{formatNum(sect.contribution)}</div>
-          </div>
-          <div className="bg-stone-900/70 rounded-lg py-1.5">
-            <div className="text-[9px] text-stone-500">累计贡献</div>
-            <div className="text-xs text-amber-300 font-semibold tabular-nums">{formatNum(sect.totalContrib)}</div>
-          </div>
-          <div className="bg-stone-900/70 rounded-lg py-1.5">
-            <div className="text-[9px] text-stone-500">今日贡献</div>
-            <div className="text-xs text-amber-300 font-semibold tabular-nums">{formatNum(sect.dayContrib)}</div>
+      <div className={cn('rounded-xl border overflow-hidden bg-gradient-to-b from-stone-900 to-stone-950 relative', def.tone.split(' ')[2])}>
+        <div className="relative h-24">
+          <img src={`/sects/sect-${def.id}.jpg`} alt={`${def.name}山门画卷`} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/35 to-transparent" />
+          <div className="absolute bottom-2 left-4 flex items-center gap-2.5">
+            <div className="w-11 h-11 rounded-full border border-stone-700 bg-stone-950/85 flex items-center justify-center shrink-0">
+              <span className="text-2xl" aria-hidden>{def.icon}</span>
+            </div>
+            <div className="min-w-0">
+              <div className="text-lg font-bold text-amber-100 drop-shadow">{def.name}</div>
+              <div className="text-[10px] text-stone-400 drop-shadow">「{def.motto}」 · 宗门等级 {info.level}</div>
+            </div>
           </div>
         </div>
-        <div className="mt-2.5 text-[11px] text-stone-300">
-          传承异能 <b className={def.tone.split(' ')[0]}>{def.bonusName}</b>：{def.bonusDesc}
+        <div className="p-4 pt-3">
+          <div className="grid grid-cols-3 gap-1.5 text-center">
+            <div className="bg-stone-900/70 rounded-lg py-1.5">
+              <div className="text-[9px] text-stone-500">可用贡献</div>
+              <div className="text-xs text-amber-300 font-semibold tabular-nums">{formatNum(sect.contribution)}</div>
+            </div>
+            <div className="bg-stone-900/70 rounded-lg py-1.5">
+              <div className="text-[9px] text-stone-500">累计贡献</div>
+              <div className="text-xs text-amber-300 font-semibold tabular-nums">{formatNum(sect.totalContrib)}</div>
+            </div>
+            <div className="bg-stone-900/70 rounded-lg py-1.5">
+              <div className="text-[9px] text-stone-500">今日贡献</div>
+              <div className="text-xs text-amber-300 font-semibold tabular-nums">{formatNum(sect.dayContrib)}</div>
+            </div>
+          </div>
+          <div className="mt-2.5 text-[11px] text-stone-300">
+            传承异能 <b className={def.tone.split(' ')[0]}>{def.bonusName}</b>：{def.bonusDesc}
+          </div>
         </div>
       </div>
 
