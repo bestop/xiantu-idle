@@ -9,6 +9,36 @@ import { genUid } from './items';
 
 export const MAX_PET_LEVEL = 200;
 export const MAX_PETS = 12; // 灵宠栏上限
+export const MAX_PET_STAGE = 3; // 进化阶段上限
+export const MAX_PET_STARS = 5; // 融合星级上限
+
+// 进化阶段定义：名称前缀与属性倍率
+export const PET_STAGES: { prefix: string; name: string; desc: string; mult: number }[] = [
+  { prefix: '', name: '凡兽', desc: '初通灵性的妖兽幼体', mult: 1 },
+  { prefix: '灵·', name: '灵兽', desc: '褪凡脱骨，灵性大开', mult: 1.6 },
+  { prefix: '仙·', name: '仙兽', desc: '沾得仙气，腾云驾雾', mult: 2.3 },
+  { prefix: '神·', name: '神兽', desc: '血脉返祖，威压如渊', mult: 3.2 },
+];
+
+// 进化需求：每阶段需宠物等级 + 金币 + 妖丹（stage 从 0→1，1→2，2→3）
+export function petEvolveReq(pet: PetInstance): { level: number; gold: number; core: number; gems: number } {
+  const m = MONSTER_MAP[pet.monsterId];
+  const tier = Math.max(1, m.tier);
+  const nextStage = pet.stage + 1;
+  return {
+    level: [30, 60, 100][pet.stage] ?? 999,
+    gold: Math.round(tier * 1200 * Math.pow(2.4, pet.stage)),
+    core: [3, 8, 15][pet.stage] ?? 999,
+    gems: nextStage >= 3 ? 20 : 0,
+  };
+}
+
+export function canEvolve(pet: PetInstance): boolean {
+  return pet.stage < MAX_PET_STAGE;
+}
+
+// 融合：吞噬同族妖兽，星级 +1，每星 +6% 全属性
+export const STAR_BONUS_PER = 0.06;
 
 // 捕获概率：战胜后有概率将妖兽收为灵宠（气运与气运技能提升概率；妖王更难）
 export function captureChance(luckStat: number, monster: MonsterDef): number {
@@ -17,18 +47,27 @@ export function captureChance(luckStat: number, monster: MonsterDef): number {
 }
 
 export function makePet(monsterId: string): PetInstance {
-  return { uid: genUid(), monsterId, level: 1, xp: 0, capturedAt: Date.now() };
+  return { uid: genUid(), monsterId, level: 1, xp: 0, capturedAt: Date.now(), stage: 0, stars: 0 };
 }
 
-// 宠物自身战斗属性（随等级成长）
+// 宠物自身战斗属性（随等级、进化阶段、融合星级成长）
 export function petStats(pet: PetInstance) {
   const m = MONSTER_MAP[pet.monsterId];
   const lv = pet.level;
+  const stageMult = PET_STAGES[pet.stage]?.mult ?? 1;
+  const starMult = 1 + pet.stars * STAR_BONUS_PER;
+  const mult = stageMult * starMult;
   return {
-    atk: Math.round(m.atk * (1 + lv * 0.05)),
-    def: Math.round(m.def * (1 + lv * 0.04)),
-    hp: Math.round(m.hp * (1 + lv * 0.08)),
+    atk: Math.round(m.atk * (1 + lv * 0.05) * mult),
+    def: Math.round(m.def * (1 + lv * 0.04) * mult),
+    hp: Math.round(m.hp * (1 + lv * 0.08) * mult),
   };
+}
+
+// 灵宠显示名（含进化前缀）
+export function petDisplayName(pet: PetInstance): string {
+  const m = MONSTER_MAP[pet.monsterId];
+  return `${PET_STAGES[pet.stage]?.prefix ?? ''}${m.name}`;
 }
 
 // 出战宠物给玩家的属性加成（随宠物等级与本体强度成长）
@@ -64,8 +103,15 @@ export function grantPetXp(pet: PetInstance, amount: number): {
   return { pet: { ...pet, level, xp }, levelsGained: level - pet.level };
 }
 
-// 放生收益（金币）
+// 放生收益（金币；进化/星级越高越值钱）
 export function releaseGold(pet: PetInstance): number {
   const m = MONSTER_MAP[pet.monsterId];
-  return Math.round(m.tier * 600 + pet.level * 120);
+  const stageBonus = [1, 2.2, 5, 12][pet.stage] ?? 1;
+  const starBonus = 1 + pet.stars * 0.5;
+  return Math.round((m.tier * 600 + pet.level * 120) * stageBonus * starBonus);
+}
+
+// 兼容旧存档：补齐 stage / stars 字段
+export function normalizePet(p: PetInstance): PetInstance {
+  return { ...p, stage: p.stage ?? 0, stars: p.stars ?? 0 };
 }

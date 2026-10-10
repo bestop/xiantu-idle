@@ -28,15 +28,17 @@ export interface LeaderEntry {
   isPlayer: boolean;
 }
 
-// 综合实力评分：技能 + 装备 + 灵宠 + 击杀 + 图鉴
+// 综合实力评分：技能 + 装备（含炼器） + 灵宠（含进化/星级） + 击杀 + 图鉴 + 转生
 export function computePowerScore(state: GameState): number {
   const skillSum = totalSkillLevel(state.skills);
   const eq = equipTotals(state.equipped);
   const eqScore = eq.atk * 2 + eq.def * 2 + eq.hp * 0.2 + eq.crit * 8 + eq.dodge * 8 + eq.speed * 4 + eq.luck * 3;
-  const petScore = (state.pets ?? []).reduce((a, p) => a + p.level * 8, 0);
+  const petScore = (state.pets ?? []).reduce((a, p) => a + p.level * 8 + (p.stage ?? 0) * 120 + (p.stars ?? 0) * 30, 0);
+  const refineScore = Object.values(state.equips).reduce((a, e) => a + (e.refine ?? 0) * 25, 0);
   const wbKills = state.stats.wbKills ?? 0;
+  const rebirthScore = (state.rebirth?.points ?? 0) * 6 + (state.rebirth?.count ?? 0) * 200;
   return Math.round(
-    skillSum * 4 + eqScore + petScore +
+    skillSum * 4 + eqScore + petScore + refineScore + rebirthScore +
     state.stats.bossKills * 30 + wbKills * 150 +
     Object.keys(state.cards).length * 12 +
     state.stats.totalKills * 0.5

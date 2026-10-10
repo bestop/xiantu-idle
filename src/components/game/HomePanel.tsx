@@ -2,10 +2,14 @@
 'use client';
 
 import { useGameStore } from '@/store/game';
-import { computePlayerStats } from '@/lib/game/engine';
-import { getTitle, combatLevelSum, totalSkillLevel, ACTIVITY_MAP, offlineEfficiency, offlineCapSeconds } from '@/lib/game/skills';
-import { petBonus, petStats, petXpToNext, MAX_PET_LEVEL } from '@/lib/game/pets';
+import { computePlayerStats, computeOfflineEfficiency, statePetMult } from '@/lib/game/engine';
+import { getTitle, combatLevelSum, totalSkillLevel, ACTIVITY_MAP, offlineCapSeconds } from '@/lib/game/skills';
+import { petBonus, petStats, petXpToNext, MAX_PET_LEVEL, petDisplayName } from '@/lib/game/pets';
 import { MONSTER_MAP } from '@/lib/game/monsters';
+import { realmAvatar } from '@/lib/game/realms';
+import { SECT_MAP } from '@/lib/game/sects';
+import { rebirthPrefix } from '@/lib/game/rebirth';
+import { activeTitleName } from '@/lib/game/titles';
 import { Section, ProgressBar, StatPill, ActionButton, formatNum, formatDuration } from './ui-bits';
 import { QUALITY_TEXT } from '@/lib/game/items';
 import { ACTIVITY_SCENE, HOME_SCENE } from '@/lib/game/scenes';
@@ -18,9 +22,12 @@ export function HomePanel() {
   const tSum = totalSkillLevel(state.skills);
   const title = getTitle(cSum);
   const act = state.activeActivity ? ACTIVITY_MAP[state.activeActivity] : null;
-  const focusLv = state.skills.focus.level;
-  const eff = offlineEfficiency(focusLv);
-  const cap = offlineCapSeconds(focusLv);
+  const eff = computeOfflineEfficiency(state);
+  const cap = offlineCapSeconds(state.skills.focus.level);
+  const avatar = realmAvatar(cSum);
+  const sect = state.sect ? SECT_MAP[state.sect.sectId] : null;
+  const wornTitle = activeTitleName(state);
+  const ownedCount = (state.titles ?? []).length;
 
   const equips = [state.equipped.weapon, state.equipped.armor, state.equipped.accessory];
 
@@ -31,20 +38,55 @@ export function HomePanel() {
         {/* 顶部金晕装饰 */}
         <div aria-hidden className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-600/8 blur-2xl pointer-events-none" />
         <div className="flex items-center gap-3 relative">
-          {/* 角色金环头像 */}
-          <div className="w-14 h-14 shrink-0 rounded-full border border-amber-600/50 bg-gradient-to-br from-stone-800 to-amber-950/70 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.15),inset_0_1px_0_0_rgba(255,255,255,0.08)]">
-            <span className="text-3xl animate-float" aria-hidden>🧙</span>
+          {/* 境界换装头像（随战斗总等级更换服饰） */}
+          <div className="w-16 h-16 shrink-0 rounded-full border border-amber-600/50 bg-gradient-to-br from-stone-800 to-amber-950/70 overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.15),inset_0_1px_0_0_rgba(255,255,255,0.08)]">
+            <img src={avatar.img} alt={`小修士${avatar.name}形象`}
+              className="w-full h-full object-cover object-top scale-[1.35] translate-y-[6%]" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-lg font-bold text-amber-100 truncate">{state.playerName}</div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-lg font-bold text-amber-100 truncate">{state.playerName}</span>
+              {(state.rebirth?.count ?? 0) > 0 && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-900/80 text-violet-200 border border-violet-700/50 whitespace-nowrap">
+                  {rebirthPrefix(state.rebirth.count).replace('·', '转')}
+                </span>
+              )}
+            </div>
             <div className="text-xs text-stone-400 mt-0.5">
               境界 <span className="text-amber-300">{title}</span> · 战斗 {cSum} · 技能 {tSum}
             </div>
+            {/* 限定称号（点击切换佩戴） */}
+            <button onClick={() => state.cycleTitle()} disabled={ownedCount === 0}
+              className={cn('mt-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border min-h-[22px] transition-colors',
+                wornTitle
+                  ? 'bg-gradient-to-r from-amber-900/80 to-amber-800/50 text-amber-200 border-amber-600/50'
+                  : 'bg-stone-800/60 text-stone-500 border-stone-700/50')}>
+              <span aria-hidden>🎖️</span>
+              {wornTitle ?? (ownedCount > 0 ? `切换称号（${ownedCount} 枚）` : '暂无限定称号')}
+            </button>
           </div>
           <div className="text-right text-[10px] text-stone-500 shrink-0 tabular-nums">
             <div>修行 {formatDuration((Date.now() - state.stats.playStart) / 1000)}</div>
             <div className="mt-0.5">击杀 {formatNum(state.stats.totalKills)} · 胜率 {state.stats.totalBattles > 0 ? Math.round(state.stats.totalWins / state.stats.totalBattles * 100) : 0}%</div>
           </div>
+        </div>
+
+        {/* 宗门 / 服饰信息条 */}
+        <div className="flex items-center gap-1.5 mt-2.5 text-[10px] relative">
+          {sect ? (
+            <button onClick={() => { state.setMoreView('sect'); state.setTab('more'); }}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-800/60 border border-stone-700/50 text-stone-300 min-h-[26px]">
+              <span aria-hidden>{sect.icon}</span>{sect.name}
+            </button>
+          ) : (
+            <button onClick={() => { state.setMoreView('sect'); state.setTab('more'); }}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-800/60 border border-dashed border-stone-700/50 text-stone-500 min-h-[26px]">
+              🏯 未拜入宗门 · 前往
+            </button>
+          )}
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-800/40 border border-stone-800 text-stone-400 min-h-[26px]">
+            👘 {avatar.name}
+          </span>
         </div>
 
         {/* 属性面板 */}
@@ -93,7 +135,13 @@ export function HomePanel() {
         }
         const m = MONSTER_MAP[pet.monsterId];
         const ps = petStats(pet);
-        const bonus = petBonus(pet);
+        const petMult = statePetMult(state);
+        const bonusRaw = petBonus(pet);
+        const bonus = {
+          atk: Math.round(bonusRaw.atk * petMult),
+          def: Math.round(bonusRaw.def * petMult),
+          hp: Math.round(bonusRaw.hp * petMult),
+        };
         const xpNeed = petXpToNext(pet.level);
         return (
           <Section className="bg-gradient-to-br from-emerald-950/40 via-stone-900 to-stone-900 border-emerald-900/50">
@@ -103,7 +151,7 @@ export function HomePanel() {
                   <span className="text-2xl animate-float" aria-hidden>{m.icon}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-emerald-300">{m.name} <span className="text-[10px] text-stone-500">Lv.{pet.level} · 出战中</span></div>
+                  <div className="text-sm font-semibold text-emerald-300">{petDisplayName(pet)} <span className="text-[10px] text-stone-500">Lv.{pet.level} · 出战中</span></div>
                   <div className="text-[10px] text-stone-500 tabular-nums">
                     攻 {formatNum(ps.atk)} · 防 {formatNum(ps.def)} · 加成 攻+{formatNum(bonus.atk)} 防+{formatNum(bonus.def)} 血+{formatNum(bonus.hp)}
                   </div>

@@ -10,6 +10,9 @@ import { xpMultiplier, dropMultiplier, critBonus, equipDropBonus, gatherTier, xp
 import { generateEquipment, rollQuality, getItem, genUid } from './items';
 import { MONSTER_MAP, getRecommendedMonster, getMonstersByRegion } from './monsters';
 import { petBonus } from './pets';
+import { refineMainMult, refineAffixMult } from './refine';
+import { sectLevelBonus, getSectMembers } from './sects';
+import { BONUS_XP_PER_POINT, BONUS_STAT_PER_POINT } from './rebirth';
 
 // ---------- 属性计算 ----------
 
@@ -18,13 +21,54 @@ export function equipTotals(equipped: EquipSlots) {
   (['weapon', 'armor', 'accessory'] as const).forEach(slot => {
     const e = equipped[slot];
     if (!e) return;
-    const all = [e.mainStat, ...e.affixes];
+    // 炼器加成：主属性 +12%/级，副词条 +6%/级
+    const rm = refineMainMult(e);
+    const am = refineAffixMult(e);
+    const main = { key: e.mainStat.key, value: e.mainStat.value * rm };
+    const all = [main, ...e.affixes.map(a => ({ key: a.key, value: a.value * am }))];
     for (const a of all) {
-      if (a.key === 'crit' || a.key === 'dodge') totals[a.key] += a.value;
-      else totals[a.key] += a.value;
+      totals[a.key] += a.value;
     }
   });
   return totals;
+}
+
+// ---------- 宗门 / 转生 全局加成 ----------
+
+// 技能经验额外乘区：转生点数（+1%/点） + 宗门剑修加成（含宗门等级）
+export function stateXpMult(state: GameState): number {
+  const points = state.rebirth?.points ?? 0;
+  let mult = 1 + points * BONUS_XP_PER_POINT;
+  if (state.sect?.sectId === 'sword') {
+    const { level } = getSectMembers(state);
+    mult += 0.08 + sectLevelBonus(level);
+  }
+  return mult;
+}
+
+// 金币收益乘区：万宝楼 +20%（含宗门等级）
+export function stateGoldMult(state: GameState): number {
+  if (state.sect?.sectId !== 'vault') return 1;
+  const { level } = getSectMembers(state);
+  return 1.2 + sectLevelBonus(level);
+}
+
+// 灵宠加成乘区：万兽门 +25%（含宗门等级）
+export function statePetMult(state: GameState): number {
+  if (state.sect?.sectId !== 'beast') return 1;
+  const { level } = getSectMembers(state);
+  return 1.25 + sectLevelBonus(level);
+}
+
+// 离线效率（含宗门丹霞谷加成）
+export function computeOfflineEfficiency(state: GameState): number {
+  const focus = state.skills.focus?.level ?? 0;
+  let eff = offlineEfficiency(focus);
+  if (state.sect?.sectId === 'alchemy') {
+    const { level } = getSectMembers(state);
+    eff = Math.min(1, eff + 0.1 + sectLevelBonus(level));
+  }
+  return Math.min(1, eff);
 }
 
 export function computePlayerStats(state: GameState): PlayerStats {
@@ -36,15 +80,24 @@ export function computePlayerStats(state: GameState): PlayerStats {
   const buffActive = state.buffExpireAt > Date.now();
   const buffAtk = buffActive ? state.activeBattleBuffAtk : 0;
 
-  // 出战灵宠加成
+  // 出战灵宠加成（含宗门万兽门乘区）
   const activePet = state.activePetUid
     ? (state.pets ?? []).find(p => p.uid === state.activePetUid) ?? null
     : null;
-  const pb = petBonus(activePet);
+  const pm = statePetMult(state);
+  const pbRaw = petBonus(activePet);
+  const pb = {
+    atk: Math.round(pbRaw.atk * pm),
+    def: Math.round(pbRaw.def * pm),
+    hp: Math.round(pbRaw.hp * pm),
+  };
 
-  const maxHp = Math.round(40 + lv('hp') * 12 + eq.hp + pb.hp);
+  // 转生点数永久加成：攻击 / 生命 +0.5%/点
+  const rebirthMult = 1 + (state.rebirth?.points ?? 0) * BONUS_STAT_PER_POINT;
+
+  const maxHp = Math.round((40 + lv('hp') * 12 + eq.hp + pb.hp) * rebirthMult);
   let atk = 6 + lv('power') * 2 + lv('weaponry') * 1 + eq.atk + pb.atk;
-  atk = Math.round(atk * (1 + buffAtk / 100));
+  atk = Math.round(atk * (1 + buffAtk / 100) * rebirthMult);
   const def = Math.round(3 + lv('defence') * 1.5 + eq.def + pb.def);
   const speed = Math.round(5 + lv('speed') * 0.5 + eq.speed);
   const critRate = Math.min(0.6, 0.05 + critBonus(lv('insight')) + eq.crit);
@@ -67,16 +120,17 @@ export interface LevelUpResult {
   newLevels: Record<string, number>;
 }
 
-// 给指定技能加经验（含悟道加成），返回获得的总等级数
+// 给指定技能加经验（含悟道加成与额外乘区），返回获得的总等级数
 export function grantSkillXp(
   skills: GameState['skills'],
   id: SkillId,
   amount: number,
-  intellectLevel: number
+  intellectLevel: number,
+  extraMult = 1
 ): { levelsGained: number; gems: number } {
   const sp = skills[id];
   if (!sp || sp.level >= 200) return { levelsGained: 0, gems: 0 };
-  const mult = xpMultiplier(intellectLevel);
+  const mult = xpMultiplier(intellectLevel) * extraMult;
   let xp = sp.xp + Math.max(1, Math.round(amount * mult));
   let level = sp.level;
   let gems = 0;
@@ -199,7 +253,7 @@ export function computeOfflineReport(state: GameState, now: number): OfflineRepo
   if (rawSeconds < 60) return null; // 少于 1 分钟不弹窗
 
   const seconds = Math.min(rawSeconds, offlineCapSeconds(state.skills.focus?.level ?? 0));
-  const eff = offlineEfficiency(state.skills.focus?.level ?? 0);
+  const eff = computeOfflineEfficiency(state);
   const intellect = state.skills.intellect?.level ?? 0;
 
   const skillXp: Record<string, number> = {};

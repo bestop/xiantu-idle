@@ -3,6 +3,7 @@
 
 import { useGameStore } from '@/store/game';
 import { getTitle, combatLevelSum, totalSkillLevel } from '@/lib/game/skills';
+import { rebirthPrefix } from '@/lib/game/rebirth';
 import { formatNum } from './ui-bits';
 
 export function TopBar() {
@@ -10,8 +11,9 @@ export function TopBar() {
   const gold = useGameStore(s => s.gold);
   const gems = useGameStore(s => s.gems);
   const skills = useGameStore(s => s.skills);
+  const rebirthCount = useGameStore(s => s.rebirth?.count ?? 0);
 
-  const title = getTitle(combatLevelSum(skills));
+  const title = `${rebirthPrefix(rebirthCount)}${getTitle(combatLevelSum(skills))}`;
 
   return (
     <header className="sticky top-0 z-30 bg-stone-950/80 backdrop-blur-md">

@@ -17,6 +17,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 export function BottomNav() {
   const tab = useGameStore((s: GameStore) => s.tab);
   const setTab = useGameStore((s: GameStore) => s.setTab);
+  const setMoreView = useGameStore((s: GameStore) => s.setMoreView);
 
   return (
     <nav
@@ -31,7 +32,11 @@ export function BottomNav() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                // 点击「更多」Tab 时回到更多面板根视图，避免停留在深层子页
+                if (t.id === 'more') setMoreView('root');
+                setTab(t.id);
+              }}
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'relative flex flex-col items-center justify-center gap-0.5 py-2 min-h-[56px] transition-colors',

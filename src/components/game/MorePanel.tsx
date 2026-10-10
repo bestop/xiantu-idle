@@ -7,13 +7,18 @@ import { getShopEntries } from '@/lib/game/engine';
 import { getItem, QUALITY_TEXT } from '@/lib/game/items';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
 import { REGIONS, getMonstersByRegion, TOTAL_MONSTERS } from '@/lib/game/monsters';
-import { SCENES, isSceneUnlocked, unlockedSceneCount, sceneUnlockHint, SceneKind } from '@/lib/game/scenes';
+import {
+  SCENES, isSceneUnlocked, unlockedSceneCount, sceneUnlockHint, SceneKind,
+  ALBUM_REWARDS, albumGroupProgress, isAlbumRewardClaimed, isAlbumRewardAvailable,
+} from '@/lib/game/scenes';
 import { PetPanel } from './PetPanel';
 import { WorldBossPanel } from './WorldBossPanel';
 import { LeaderboardPanel } from './LeaderboardPanel';
+import { SectPanel } from './SectPanel';
+import { RebirthPanel } from './RebirthPanel';
 import { Section, ActionButton, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal, Images } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal, Images, Landmark, RefreshCcw, Gift } from 'lucide-react';
 
 export function MorePanel() {
   const view = useGameStore(s => s.moreView);
@@ -26,16 +31,20 @@ export function MorePanel() {
   if (view === 'pets') return <PetPanel onBack={() => setView('root')} />;
   if (view === 'worldboss') return <WorldBossPanel onBack={() => setView('root')} />;
   if (view === 'leaderboard') return <LeaderboardPanel onBack={() => setView('root')} />;
+  if (view === 'sect') return <SectPanel onBack={() => setView('root')} />;
+  if (view === 'rebirth') return <RebirthPanel onBack={() => setView('root')} />;
   if (view === 'settings') return <SettingsView onBack={() => setView('root')} />;
 
   const entries = [
-    { id: 'pets', icon: <PawPrint className="w-5 h-5" />, title: '灵宠舍', desc: '收服妖兽为灵宠，出战提供属性加成', tone: 'text-emerald-300 bg-emerald-950/60 border-emerald-900/50' },
-    { id: 'worldboss', icon: <Skull className="w-5 h-5" />, title: '世界 BOSS', desc: '血量持久的巨兽，伤害累积挑战', tone: 'text-rose-300 bg-rose-950/60 border-rose-900/50' },
+    { id: 'sect', icon: <Landmark className="w-5 h-5" />, title: '宗门', desc: '拜入山门，贡献换珍宝，同门争魁首', tone: 'text-cyan-300 bg-cyan-950/60 border-cyan-900/50' },
+    { id: 'pets', icon: <PawPrint className="w-5 h-5" />, title: '灵宠舍', desc: '收服妖兽为灵宠，进化融合羽化神兽', tone: 'text-emerald-300 bg-emerald-950/60 border-emerald-900/50' },
+    { id: 'worldboss', icon: <Skull className="w-5 h-5" />, title: '世界 BOSS', desc: '血量持久的巨兽，伤害累积冲榜', tone: 'text-rose-300 bg-rose-950/60 border-rose-900/50' },
     { id: 'leaderboard', icon: <Medal className="w-5 h-5" />, title: '天梯榜', desc: '综合实力排名，与万千修士争锋', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
+    { id: 'rebirth', icon: <RefreshCcw className="w-5 h-5" />, title: '轮回转生', desc: '渡劫之后轮回重修，换取永久加成', tone: 'text-violet-300 bg-violet-950/60 border-violet-900/50' },
     { id: 'shop', icon: <Store className="w-5 h-5" />, title: '仙市', desc: '购买丹药、材料与装备宝袋', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
     { id: 'achievements', icon: <Trophy className="w-5 h-5" />, title: '成就', desc: '永久成就与宝石奖励', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
     { id: 'codex', icon: <BookOpen className="w-5 h-5" />, title: '妖兽图鉴', desc: '收集怪物卡片，点亮图鉴', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
-    { id: 'album', icon: <Images className="w-5 h-5" />, title: '山河画册', desc: '小修士的旅行明信片，到访一处收录一张', tone: 'text-sky-300 bg-sky-950/60 border-sky-900/50' },
+    { id: 'album', icon: <Images className="w-5 h-5" />, title: '山河画册', desc: '集齐明信片领限定称号，永久收藏', tone: 'text-sky-300 bg-sky-950/60 border-sky-900/50' },
     { id: 'settings', icon: <Settings className="w-5 h-5" />, title: '设置', desc: '重置存档与游戏说明', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
   ] as const;
 
@@ -254,6 +263,50 @@ function AlbumView({ onBack }: { onBack: () => void }) {
         同一位白衣小修士，走过一处山水，便寄回一张明信片。
       </p>
 
+      {/* 集齐奖励 */}
+      <Section title="集齐奖励">
+        <div className="space-y-1.5">
+          {ALBUM_REWARDS.map(rw => {
+            const claimed = isAlbumRewardClaimed(rw, store);
+            const available = isAlbumRewardAvailable(rw, store);
+            const prog = rw.kind === 'grand'
+              ? { got: unlocked, total: SCENES.length }
+              : albumGroupProgress(rw.kind as SceneKind, store);
+            return (
+              <div key={rw.id}
+                className={cn('rounded-lg border p-2.5 flex items-center gap-2.5',
+                  claimed ? 'bg-emerald-950/30 border-emerald-800/60'
+                    : available ? 'bg-amber-950/40 border-amber-700/60'
+                    : 'bg-stone-900/60 border-stone-800')}>
+                <span aria-hidden className={cn('w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 text-lg',
+                  claimed ? 'border-emerald-800/60 bg-emerald-950/50' : 'border-stone-700/60 bg-stone-800/60')}>
+                  {claimed ? '🏅' : '🎁'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className={cn('text-xs font-semibold', claimed ? 'text-emerald-300' : 'text-stone-200')}>
+                    {rw.name}
+                    {rw.titleName && <span className="text-[9px] ml-1 px-1 py-0.5 rounded bg-amber-900/80 text-amber-200">称号</span>}
+                  </div>
+                  <div className="text-[10px] text-stone-500">
+                    {rw.desc} · 💎{rw.gems} · 进度 {prog.got}/{prog.total}
+                  </div>
+                </div>
+                {claimed ? (
+                  <span className="text-[10px] text-emerald-400 shrink-0">已领取</span>
+                ) : available ? (
+                  <ActionButton className="!min-h-[36px] !px-3 text-xs shrink-0"
+                    onClick={() => store.claimAlbumReward(rw.id)}>
+                    <Gift className="w-3.5 h-3.5 inline mr-1 -mt-0.5" aria-hidden />领取
+                  </ActionButton>
+                ) : (
+                  <span className="text-[10px] text-stone-600 shrink-0">未达成</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
       {ALBUM_GROUPS.map(group => {
         const scenes = SCENES.filter(s => s.kind === group.kind);
         if (scenes.length === 0) return null;
@@ -327,10 +380,13 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <p>· <b className="text-stone-300">16 项技能</b>：5 项战斗技能随战斗成长，11 项生活技能通过活动修炼，上限 200 级。</p>
           <p>· <b className="text-stone-300">真实离线进度</b>：关闭页面后角色继续修炼、战斗、采集（受定力技能影响），回来领取收益。</p>
           <p>· <b className="text-stone-300">随机装备</b>：主属性与副词条完全随机，品质决定强度，气运影响掉落。</p>
-          <p>· <b className="text-stone-300">灵宠</b>：战胜妖兽小概率收服，出战提供属性加成并随战斗成长。</p>
-          <p>· <b className="text-stone-300">世界 BOSS</b>：血量跨挑战持久的巨兽，按伤害结算奖励，击杀得仙品装备。</p>
+          <p>· <b className="text-stone-300">灵宠</b>：战胜妖兽小概率收服，出战提供属性加成并随战斗成长；可进化（凡→灵→仙→神）与融合升星。</p>
+          <p>· <b className="text-stone-300">炼器</b>：背包中炼化装备，主属性 +12%/级，失败不损装备，上限 +10。</p>
+          <p>· <b className="text-stone-300">宗门</b>：拜入四大宗门获得专属异能，战斗积累贡献，兑换珍宝、晋升位阶。</p>
+          <p>· <b className="text-stone-300">世界 BOSS</b>：血量跨挑战持久的巨兽，按伤害结算奖励并列入本期伤害榜，击杀得仙品装备。</p>
           <p>· <b className="text-stone-300">天梯榜</b>：综合实力排名，与万千修士争锋。</p>
-          <p>· <b className="text-stone-300">永久成长</b>：无强制转生，技能每升 1 级 +1 宝石，成就另有宝石奖励。</p>
+          <p>· <b className="text-stone-300">山河画册</b>：集齐明信片可领取宝石与限定称号，主页可佩戴称号。</p>
+          <p>· <b className="text-stone-300">轮回转生</b>：渡劫后可转生，重置技能换取永久加成，资产全部保留。</p>
           <p>· 存档保存在浏览器本地。</p>
         </div>
       </Section>

@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/store/game';
 import { computePlayerStats } from '@/lib/game/engine';
-import { WORLD_BOSSES, wbMaxHp, runWorldBossAttempt, WB_CHALLENGE_COOLDOWN_MS, WorldBossAttemptResult } from '@/lib/game/worldboss';
+import { WORLD_BOSSES, wbMaxHp, runWorldBossAttempt, WB_CHALLENGE_COOLDOWN_MS, WorldBossAttemptResult, getWbDamageRanking } from '@/lib/game/worldboss';
 import { QUALITY_TEXT } from '@/lib/game/items';
 import { BOSS_SCENE } from '@/lib/game/scenes';
 import { Section, ProgressBar, ActionButton, formatNum, QualityBadge } from './ui-bits';
@@ -17,6 +17,7 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
   const boss = WORLD_BOSSES[wb.bossIdx % WORLD_BOSSES.length];
   const maxHp = wbMaxHp(wb.bossIdx);
   const [result, setResult] = useState<WorldBossAttemptResult | null>(null);
+  const ranking = getWbDamageRanking(store);
 
   const cooldownLeft = Math.max(0, wb.lastChallengeAt + WB_CHALLENGE_COOLDOWN_MS - Date.now());
   const cooldownSec = Math.ceil(cooldownLeft / 1000);
@@ -133,6 +134,37 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       )}
+
+      {/* 伤害排行榜 */}
+      <Section title="本期伤害榜" extra={<span className="text-[10px] text-amber-300">你的排名 第 {ranking.playerRank} / {ranking.entries.length} 位</span>}>
+        <div className="space-y-1">
+          {ranking.entries.slice(0, 10).map((e, i) => (
+            <div key={e.name}
+              className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs',
+                e.isPlayer ? 'bg-amber-950/40 border border-amber-900/50' : i % 2 === 0 ? 'bg-stone-800/30' : '')}>
+              <span className={cn('w-5 text-center text-[10px] tabular-nums shrink-0',
+                i === 0 ? 'text-amber-400' : i === 1 ? 'text-stone-300' : i === 2 ? 'text-orange-400' : 'text-stone-600')}>
+                {i + 1}
+              </span>
+              <span className="shrink-0" aria-hidden>{e.icon}</span>
+              <span className="flex-1 min-w-0 truncate text-stone-300">{e.name}{e.isPlayer && '（你）'}</span>
+              <span className="tabular-nums text-rose-300/90 text-[11px]">{formatNum(e.damage)}</span>
+            </div>
+          ))}
+          {ranking.playerRank > 10 && (() => {
+            const me = ranking.entries[ranking.playerRank - 1];
+            return (
+              <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs bg-amber-950/40 border border-amber-900/50 mt-1">
+                <span className="w-5 text-center text-[10px] tabular-nums text-stone-500 shrink-0">{ranking.playerRank}</span>
+                <span className="shrink-0" aria-hidden>{me.icon}</span>
+                <span className="flex-1 min-w-0 truncate text-stone-300">{me.name}（你）</span>
+                <span className="tabular-nums text-rose-300/90 text-[11px]">{formatNum(me.damage)}</span>
+              </div>
+            );
+          })()}
+        </div>
+        <div className="text-[10px] text-stone-600 mt-2 text-center">本期对当前世界 BOSS 的累计伤害排名，轮换后重新计榜</div>
+      </Section>
 
       {/* 轮换表 */}
       <Section title="轮换一览" extra={<span className="text-[10px] text-stone-500">当前第 {(wb.bossIdx % WORLD_BOSSES.length) + 1} / {WORLD_BOSSES.length} 位</span>}>

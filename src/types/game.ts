@@ -124,6 +124,7 @@ export interface Equipment {
   affixes: EquipAffix[];
   sellPrice: number;
   createdAt: number;
+  refine: number; // 炼器等级 0-10（旧存档默认 0）
 }
 
 // 怪物卡片（收集要素）
@@ -241,6 +242,8 @@ export interface PetInstance {
   level: number;
   xp: number;
   capturedAt: number;
+  stage: number; // 进化阶段 0-3（旧存档默认 0）
+  stars: number; // 融合星级 0-5（旧存档默认 0）
 }
 
 // ---------- 世界 BOSS ----------
@@ -255,11 +258,33 @@ export interface WorldBossState {
   killed: boolean;        // 本期是否已被击杀
 }
 
+// ---------- 宗门 ----------
+
+export type SectId = 'sword' | 'alchemy' | 'beast' | 'vault';
+
+// 玩家在宗门中的状态（null = 未加入任何宗门）
+export interface PlayerSectState {
+  sectId: SectId;
+  contribution: number;   // 当前可消费贡献点
+  totalContrib: number;   // 累计贡献（决定弟子位阶/宗门等级）
+  joinedAt: number;
+  dayKey: string;         // 今日贡献统计键（YYYY-MM-DD）
+  dayContrib: number;
+}
+
+// ---------- 转生 ----------
+
+export interface RebirthState {
+  count: number;  // 转生次数
+  points: number; // 转生点数（永久加成）
+}
+
 // ---------- 更多面板子视图 ----------
 
 export type MoreViewId =
   | 'root' | 'shop' | 'achievements' | 'codex'
   | 'pets' | 'worldboss' | 'leaderboard'
+  | 'sect' | 'rebirth'
   | 'settings';
 
 // ---------- 成就 ----------
@@ -351,6 +376,13 @@ export interface GameState {
 
   // 世界 BOSS
   worldBoss: WorldBossState;
+
+  // 宗门 / 转生 / 画册奖励 / 限定称号
+  sect: PlayerSectState | null;
+  rebirth: RebirthState;
+  albumClaims: string[];      // 已领取的画册奖励 id
+  titles: string[];           // 已拥有的限定称号 id
+  activeTitle: string | null; // 当前佩戴的限定称号
 
   // 更多面板当前子视图（供跨面板跳转）
   moreView: MoreViewId;

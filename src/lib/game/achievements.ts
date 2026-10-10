@@ -51,6 +51,24 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'pet_12', name: '万灵之友', icon: '🐾', description: '灵宠栏全部占满（12 只）', metric: 'pets', target: 12, gemReward: 60 },
   { id: 'pet_lv50', name: '御兽真传', icon: '🐉', description: '任意灵宠达到 50 级', metric: 'bestPetLevel', target: 50, gemReward: 25 },
   { id: 'pet_lv200', name: '兽神附体', icon: '🐲', description: '任意灵宠达到 200 级', metric: 'bestPetLevel', target: 200, gemReward: 120 },
+  { id: 'pet_evo_1', name: '灵性初开', icon: '✨', description: '首次进化灵宠', metric: 'petMaxStage', target: 1, gemReward: 20 },
+  { id: 'pet_evo_3', name: '涅槃神宠', icon: '🔥', description: '灵宠进化至神兽阶段', metric: 'petMaxStage', target: 3, gemReward: 80 },
+  { id: 'pet_star_3', name: '三星共鸣', icon: '⭐', description: '任意灵宠融合至 3 星', metric: 'petMaxStars', target: 3, gemReward: 20 },
+  { id: 'pet_star_5', name: '五星兽王', icon: '🌟', description: '任意灵宠融合至 5 星', metric: 'petMaxStars', target: 5, gemReward: 70 },
+
+  // ===== 炼器 =====
+  { id: 'refine_3', name: '炼器入门', icon: '🔨', description: '任意装备炼器至 +3', metric: 'maxRefine', target: 3, gemReward: 10 },
+  { id: 'refine_5', name: '炼器小成', icon: '⚒️', description: '任意装备炼器至 +5', metric: 'maxRefine', target: 5, gemReward: 25 },
+  { id: 'refine_10', name: '炼器大师', icon: '🛠️', description: '任意装备炼器至 +10', metric: 'maxRefine', target: 10, gemReward: 90 },
+
+  // ===== 宗门 =====
+  { id: 'sect_join', name: '拜入山门', icon: '🏯', description: '加入一个宗门', metric: 'sectJoined', target: 1, gemReward: 8 },
+  { id: 'sect_contrib_500', name: '宗门新星', icon: '📌', description: '累计宗门贡献 500', metric: 'sectContrib', target: 500, gemReward: 18 },
+  { id: 'sect_contrib_2000', name: '宗门栋梁', icon: '🏛️', description: '累计宗门贡献 2000', metric: 'sectContrib', target: 2000, gemReward: 45 },
+
+  // ===== 转生 =====
+  { id: 'rebirth_1', name: '轮回初醒', icon: '☸️', description: '首次转生', metric: 'rebirths', target: 1, gemReward: 50 },
+  { id: 'rebirth_3', name: '三世轮回', icon: '☯️', description: '转生 3 次', metric: 'rebirths', target: 3, gemReward: 120 },
 
   // ===== 世界 BOSS =====
   { id: 'wb_1', name: '世界之敌', icon: '🐍', description: '首次击杀世界 BOSS', metric: 'wbKills', target: 1, gemReward: 15 },
@@ -80,6 +98,12 @@ export function achievementValue(metric: string, state: GameState): number {
     case 'cardTypes': return Object.keys(state.cards).length;
     case 'pets': return (state.pets ?? []).length;
     case 'bestPetLevel': return Math.max(0, ...(state.pets ?? []).map(p => p.level));
+    case 'petMaxStage': return Math.max(0, ...(state.pets ?? []).map(p => p.stage ?? 0));
+    case 'petMaxStars': return Math.max(0, ...(state.pets ?? []).map(p => p.stars ?? 0));
+    case 'maxRefine': return Math.max(0, ...Object.values(state.equips).map(e => e.refine ?? 0));
+    case 'sectJoined': return state.sect ? 1 : 0;
+    case 'sectContrib': return state.sect?.totalContrib ?? 0;
+    case 'rebirths': return state.rebirth?.count ?? 0;
     case 'wbKills': return state.stats.wbKills ?? 0;
     case 'wbBestDamage': return state.stats.wbBestDamage ?? 0;
     case 'anySkill10': return Math.max(...Object.values(state.skills).map(s => s.level)) >= 10 ? 1 : 0;

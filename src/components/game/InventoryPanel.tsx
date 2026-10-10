@@ -6,7 +6,11 @@ import { useGameStore } from '@/store/game';
 import { getItem, QUALITY_TEXT, QUALITY_NAMES, AFFIX_NAMES, formatAffix } from '@/lib/game/items';
 import { BaseItem, Equipment, EquipSlot, ItemQuality, InvItem } from '@/types/game';
 import { computePlayerStats, equipTotals } from '@/lib/game/engine';
-import { Section, ActionButton, QualityBadge, formatNum } from './ui-bits';
+import {
+  MAX_REFINE, isRefinable, refineCost, refineSuccessRate,
+  refineMainMult, refineAffixMult, refineName, refineOreName,
+} from '@/lib/game/refine';
+import { Section, ActionButton, QualityBadge, ProgressBar, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, Trash2 } from 'lucide-react';
 
@@ -166,7 +170,7 @@ export function InventoryPanel() {
                 <span className="text-2xl" aria-hidden>{eq.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className={cn('text-xs font-semibold truncate', QUALITY_TEXT[eq.quality])}>{eq.name}</span>
+                    <span className={cn('text-xs font-semibold truncate', QUALITY_TEXT[eq.quality])}>{refineName(eq)}</span>
                     <QualityBadge quality={eq.quality} />
                     {isEquipped && <span className="text-[9px] px-1 rounded bg-amber-900 text-amber-300">已装备</span>}
                   </div>
@@ -234,19 +238,29 @@ function EmptyHint({ text }: { text: string }) {
 
 function mainStatText(eq: Equipment): string {
   const key = eq.mainStat.key;
-  if (key === 'crit' || key === 'dodge') return `${AFFIX_NAMES[key]} +${(eq.mainStat.value * 100).toFixed(1)}%`;
-  return `${AFFIX_NAMES[key]} +${formatNum(eq.mainStat.value)}`;
+  const v = eq.mainStat.value * refineMainMult(eq);
+  if (key === 'crit' || key === 'dodge') return `${AFFIX_NAMES[key]} +${(v * 100).toFixed(1)}%`;
+  return `${AFFIX_NAMES[key]} +${formatNum(v)}`;
 }
 
 // ===== 装备详情 =====
 function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
   const store = useGameStore();
   const eq = store.equips[uid];
+  const [msg, setMsg] = useState<string | null>(null);
   if (!eq) return null;
   const isEquipped = Object.values(store.equipped).some(e => e?.uid === uid);
   const current = store.equipped[eq.slot];
   const equippedScore = current ? gearScore(current) : 0;
   const thisScore = gearScore(eq);
+  const refinable = isRefinable(eq);
+  const cost = refineCost(eq);
+  const rate = refineSuccessRate(eq);
+  const oreHave = store.inventory.find(i => i.itemId === cost.oreId)?.quantity ?? 0;
+  const oreOk = oreHave >= cost.oreQty;
+  const goldOk = store.gold >= cost.gold;
+
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 2600); };
 
   return (
     <div className="p-3 pb-24 space-y-3">
@@ -256,7 +270,7 @@ function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
 
       <Section className="text-center">
         <div className="text-5xl mb-2" aria-hidden>{eq.icon}</div>
-        <div className={cn('text-base font-bold', QUALITY_TEXT[eq.quality])}>{eq.name}</div>
+        <div className={cn('text-base font-bold', QUALITY_TEXT[eq.quality])}>{refineName(eq)}</div>
         <div className="flex items-center justify-center gap-1.5 mt-1">
           <QualityBadge quality={eq.quality} />
           <span className="text-[10px] text-stone-500">{eq.tier}阶 · {SLOT_META[eq.slot].label}</span>
@@ -266,13 +280,13 @@ function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
       <Section title="属性">
         <div className="space-y-1.5 text-xs">
           <div className="flex justify-between">
-            <span className="text-stone-400">主属性</span>
+            <span className="text-stone-400">主属性{eq.refine ? <span className="text-amber-500">（含炼器×{refineMainMult(eq).toFixed(2)}）</span> : null}</span>
             <span className="text-amber-300 font-semibold">{mainStatText(eq)}</span>
           </div>
           {eq.affixes.map((a, i) => (
             <div key={i} className="flex justify-between">
               <span className="text-stone-400">副属性 {i + 1}</span>
-              <span className="text-emerald-300">{AFFIX_NAMES[a.key]} {formatAffix(a.key, a.value)}</span>
+              <span className="text-emerald-300">{AFFIX_NAMES[a.key]} {formatAffix(a.key, a.value * refineAffixMult(eq))}</span>
             </div>
           ))}
           <div className="flex justify-between pt-1 border-t border-stone-800">
@@ -285,6 +299,38 @@ function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
             </span>
           </div>
         </div>
+      </Section>
+
+      {/* 炼器 */}
+      <Section title={`炼器 +${eq.refine ?? 0} / ${MAX_REFINE}`}>
+        {msg && <div className="text-xs text-center text-amber-300 bg-amber-950/50 border border-amber-900/50 rounded-lg py-2 mb-2">{msg}</div>}
+        {refinable ? (
+          <>
+            <div className="text-[11px] text-stone-400 space-y-1 leading-relaxed mb-2.5">
+              <p>· 消耗灵矿与金币炼化装备：主属性 <b className="text-amber-300">+12%</b>/级，副词条 <b className="text-amber-300">+6%</b>/级。</p>
+              <p>· 成功率随等级下降，失败仅折损材料，装备无损、不降级。</p>
+            </div>
+            <ProgressBar value={rate * 100} max={100} className="h-2.5" barClass="bg-gradient-to-r from-cyan-600 to-cyan-400" showText />
+            <div className="flex items-center justify-between mt-2 text-[11px]">
+              <span className={cn('text-stone-400', !oreOk && 'text-red-400')}>
+                {refineOreName(eq)} {oreHave}/{cost.oreQty}
+              </span>
+              <span className={cn('text-stone-400', !goldOk && 'text-red-400')}>
+                🪙 {formatNum(cost.gold)}
+              </span>
+            </div>
+            <ActionButton className="w-full mt-2.5"
+              disabled={!oreOk || !goldOk}
+              onClick={() => {
+                const err = store.refineGear(uid);
+                if (err) flash(err);
+              }}>
+              🔨 开始炼器（成功率 {Math.round(rate * 100)}%）
+            </ActionButton>
+          </>
+        ) : (
+          <div className="text-center text-[11px] text-amber-300/90 py-2">已达炼器上限 +{MAX_REFINE}，宝光自蕴</div>
+        )}
       </Section>
 
       <div className="grid grid-cols-2 gap-2">
@@ -304,7 +350,12 @@ function GearDetail({ uid, onBack }: { uid: string; onBack: () => void }) {
 
 function gearScore(eq: Equipment): number {
   let score = 0;
-  const all = [eq.mainStat, ...eq.affixes];
+  const rm = refineMainMult(eq);
+  const am = refineAffixMult(eq);
+  const all = [
+    { key: eq.mainStat.key, value: eq.mainStat.value * rm },
+    ...eq.affixes.map(a => ({ key: a.key, value: a.value * am })),
+  ];
   for (const a of all) {
     switch (a.key) {
       case 'atk': score += a.value * 3; break;

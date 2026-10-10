@@ -166,3 +166,39 @@ export function sceneUnlockHint(scene: SceneDef): string {
     default: return '';
   }
 }
+
+// ---------- 画册集齐奖励 ----------
+
+export interface AlbumReward {
+  id: string;              // 领取键（存入 albumClaims）
+  kind: SceneKind | 'grand';
+  name: string;            // 奖励名
+  gems: number;            // 宝石奖励
+  titleId?: string;        // 附带限定称号
+  titleName?: string;
+  desc: string;
+}
+
+export const ALBUM_REWARDS: AlbumReward[] = [
+  { id: 'album_home', kind: 'home', name: '洞府常客', gems: 10, desc: '收录「我的洞府」全部分页' },
+  { id: 'album_boss', kind: 'boss', name: '直面巨兽', gems: 10, desc: '收录「强敌之影」全部分页' },
+  { id: 'album_region', kind: 'region', name: '山河行者', gems: 30, titleId: 'title_shanhe', titleName: '山河行者', desc: '收录「行走山河」全部 8 张明信片' },
+  { id: 'album_activity', kind: 'activity', name: '修行百艺', gems: 40, titleId: 'title_baiyi', titleName: '百艺修士', desc: '收录「修行手记」全部 11 张明信片' },
+  { id: 'album_grand', kind: 'grand', name: '画圣·山河印心', gems: 100, titleId: 'title_huasheng', titleName: '画圣·山河印心', desc: '集齐整本山河画册（限定称号）' },
+];
+
+export function albumGroupProgress(kind: SceneKind, state: GameState): { got: number; total: number; done: boolean } {
+  const scenes = SCENES.filter(s => s.kind === kind);
+  const got = scenes.reduce((n, s) => n + (isSceneUnlocked(s, state) ? 1 : 0), 0);
+  return { got, total: scenes.length, done: got === scenes.length && scenes.length > 0 };
+}
+
+export function isAlbumRewardClaimed(rw: AlbumReward, state: GameState): boolean {
+  return (state.albumClaims ?? []).includes(rw.id);
+}
+
+export function isAlbumRewardAvailable(rw: AlbumReward, state: GameState): boolean {
+  if (isAlbumRewardClaimed(rw, state)) return false;
+  if (rw.kind === 'grand') return unlockedSceneCount(state) === SCENES.length;
+  return albumGroupProgress(rw.kind as SceneKind, state).done;
+}

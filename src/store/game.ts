@@ -9,17 +9,35 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   GameState, SkillId, ActivityId, TabId, BattleRewards, EquipSlot,
   Equipment, OfflineReport, InvItem, AchievementState, MoreViewId,
+  PlayerSectState, SectId,
 } from '@/types/game';
-import { ACTIVITY_MAP, xpToNext, gatherTier } from '@/lib/game/skills';
+import { ACTIVITY_MAP, xpToNext, gatherTier, combatLevelSum } from '@/lib/game/skills';
 import {
   computePlayerStats, grantSkillXp, computeOfflineReport, resolveDynamicItemId,
   activityRoundReward, pendingOfflineEquips, getShopEntries, openEquipBag,
+  stateXpMult, stateGoldMult,
 } from '@/lib/game/engine';
 import { getItem, generateEquipment, genUid, CRAFT_RECIPES, rollQuality } from '@/lib/game/items';
 import { MONSTER_MAP } from '@/lib/game/monsters';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
-import { MAX_PETS, makePet, grantPetXp, releaseGold } from '@/lib/game/pets';
+import {
+  MAX_PETS, makePet, grantPetXp, releaseGold, normalizePet,
+  canEvolve, petEvolveReq, petDisplayName, PET_STAGES, MAX_PET_STARS,
+} from '@/lib/game/pets';
 import { initialWorldBoss, checkRotate, WorldBossAttemptResult } from '@/lib/game/worldboss';
+import {
+  isRefinable, refineCost, refineSuccessRate, refineOreName,
+} from '@/lib/game/refine';
+import {
+  SECT_MAP, getSectShopEntries, grantContribution, todayKey,
+  CONTRIB_PER_KILL, CONTRIB_PER_BOSS, CONTRIB_PER_WB, sectTitleId,
+} from '@/lib/game/sects';
+import {
+  initialRebirth, normalizeRebirth, canRebirth, rebirthPointsGain, REBIRTH_TITLES,
+} from '@/lib/game/rebirth';
+import { ALBUM_REWARDS, isAlbumRewardAvailable } from '@/lib/game/scenes';
+import { getTitleDef, currentSectTitleId, normalizeTitles } from '@/lib/game/titles';
+import { formatNum } from '@/components/game/ui-bits';
 
 const emptySkills = (): Record<SkillId, { level: number; xp: number }> => {
   const ids: SkillId[] = [
@@ -60,6 +78,11 @@ const initialState: GameState = {
   pets: [],
   activePetUid: null,
   worldBoss: initialWorldBoss(),
+  sect: null,
+  rebirth: initialRebirth(),
+  albumClaims: [],
+  titles: [],
+  activeTitle: null,
   moreView: 'root',
   pendingOfflineReport: null,
 };
@@ -107,6 +130,24 @@ export interface GameStore extends GameState {
   // 灵宠
   setActivePet: (uid: string | null) => void;
   releasePet: (uid: string) => void;
+  evolvePet: (uid: string) => string | null;          // 返回错误信息，null 成功
+  fusePet: (mainUid: string, sacrificeUid: string) => string | null;
+
+  // 炼器
+  refineGear: (uid: string) => string | null;
+
+  // 宗门
+  joinSect: (sectId: SectId) => void;
+  leaveSect: () => void;
+  buySectItem: (itemId: string) => string | null;
+
+  // 转生
+  doRebirth: () => void;
+
+  // 画册奖励与称号
+  claimAlbumReward: (id: string) => void;
+  cycleTitle: () => void;
+  syncAutoTitles: () => void;
 
   // 世界 BOSS
   applyWorldBossResult: (r: WorldBossAttemptResult) => void;
@@ -148,11 +189,24 @@ export const useGameStore = create<GameStore>()(
       toastSeq: 0,
 
       markHydrated: () => {
-        // 旧存档兼容：补齐 v2 新增字段
+        // 旧存档兼容：补齐 v2/v3 新增字段
         const s = get();
         const stats = { ...initialStats(), ...s.stats };
         const worldBoss = s.worldBoss ? checkRotate(s.worldBoss, Date.now()) : initialWorldBoss();
-        set({ hydrated: true, stats, worldBoss, pets: s.pets ?? [] });
+        const pets = (s.pets ?? []).map(normalizePet);
+        const equips: Record<string, Equipment> = {};
+        for (const [uid, e] of Object.entries(s.equips ?? {})) {
+          equips[uid] = { ...e, refine: (e as Equipment).refine ?? 0 };
+        }
+        const rebirth = normalizeRebirth(s.rebirth);
+        const tn = normalizeTitles(s);
+        set({
+          hydrated: true, stats, worldBoss, pets, equips, rebirth,
+          titles: tn.titles, activeTitle: tn.activeTitle,
+          albumClaims: s.albumClaims ?? [],
+          sect: s.sect ?? null,
+        });
+        get().syncAutoTitles();
         get().settleOffline();
       },
 
@@ -196,6 +250,8 @@ export const useGameStore = create<GameStore>()(
         let inventory = state.inventory;
         let activityProgress = state.activityProgress;
         let levelUps = 0;
+        const xpMult = stateXpMult(state);
+        const goldMult = stateGoldMult(state);
 
         // 活动推进（基于真实时间差，兼容后台限流）
         if (state.activeActivity) {
@@ -208,10 +264,10 @@ export const useGameStore = create<GameStore>()(
               guard++;
               // 结算一轮
               const r = activityRoundReward(state.activeActivity, state);
-              const res = grantSkillXp(skills, act.skillId, r.skillXp, skills.intellect.level);
+              const res = grantSkillXp(skills, act.skillId, r.skillXp, skills.intellect.level, xpMult);
               levelUps += res.levelsGained;
               gems += res.gems;
-              if (r.gold > 0) { gold += r.gold; }
+              if (r.gold > 0) { gold += Math.round(r.gold * goldMult); }
               if (r.itemId && r.itemQty > 0) {
                 inventory = addItem(inventory, r.itemId, r.itemQty);
               }
@@ -253,11 +309,12 @@ export const useGameStore = create<GameStore>()(
         const skills = { ...state.skills };
         let gems = state.gems;
         let levelUps = 0;
+        const xpMult = stateXpMult(state);
 
         if (won) {
           // 5 项战斗技能各得经验
           for (const id of ['hp', 'weaponry', 'power', 'defence', 'speed'] as SkillId[]) {
-            const r = grantSkillXp(skills, id, rewards.exp, skills.intellect.level);
+            const r = grantSkillXp(skills, id, rewards.exp, skills.intellect.level, xpMult);
             gems += r.gems;
             levelUps += r.levelsGained;
           }
@@ -310,7 +367,14 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        const gold = state.gold + (won ? rewards.gold : 0) + rewards.gems * 0;
+        const gold = state.gold + (won ? Math.round(rewards.gold * stateGoldMult(state)) : 0) + rewards.gems * 0;
+
+        // 宗门贡献：胜利 +1，妖王 +10
+        let sect = state.sect;
+        if (sect && won) {
+          sect = grantContribution(sect, monster.isBoss ? CONTRIB_PER_BOSS : CONTRIB_PER_KILL);
+        }
+
         const stats = {
           ...state.stats,
           totalBattles: state.stats.totalBattles + 1,
@@ -323,7 +387,7 @@ export const useGameStore = create<GameStore>()(
           petsCaptured: (state.stats.petsCaptured ?? 0) + petsCaptured,
         };
 
-        set({ skills, gems, inventory, equips, cards, gold, stats, pets });
+        set({ skills, gems, inventory, equips, cards, gold, stats, pets, sect });
         get().checkAchievements();
       },
 
@@ -345,8 +409,9 @@ export const useGameStore = create<GameStore>()(
         if (item.pillEffect === 'exp') {
           let gems = state.gems;
           let levelUps = 0;
+          const xpMult = stateXpMult(state);
           for (const id of ['hp', 'weaponry', 'power', 'defence', 'speed'] as SkillId[]) {
-            const r = grantSkillXp(skills, id, item.pillValue ?? 500, skills.intellect.level);
+            const r = grantSkillXp(skills, id, item.pillValue ?? 500, skills.intellect.level, xpMult);
             gems += r.gems;
             levelUps += r.levelsGained;
           }
@@ -494,7 +559,7 @@ export const useGameStore = create<GameStore>()(
 
         const skills = { ...state.skills };
         let gems = state.gems;
-        const res = grantSkillXp(skills, recipe.kind, recipe.skillXp * 3, skills.intellect.level);
+        const res = grantSkillXp(skills, recipe.kind, recipe.skillXp * 3, skills.intellect.level, stateXpMult(state));
         gems += res.gems;
 
         let equips = state.equips;
@@ -563,6 +628,50 @@ export const useGameStore = create<GameStore>()(
       // ---------- 灵宠 ----------
       setActivePet: (uid) => set({ activePetUid: uid }),
 
+      evolvePet: (uid) => {
+        const state = get();
+        const idx = state.pets.findIndex(p => p.uid === uid);
+        if (idx < 0) return '灵宠不存在';
+        const pet = state.pets[idx];
+        if (!canEvolve(pet)) return '已达进化上限（神兽）';
+        const req = petEvolveReq(pet);
+        if (pet.level < req.level) return `等级不足（需 ${req.level} 级）`;
+        if (state.gold < req.gold) return `金币不足（需 ${formatNum(req.gold)}）`;
+        const coreHave = state.inventory.find(i => i.itemId === 'core_1')?.quantity ?? 0;
+        if (coreHave < req.core) return `妖丹不足（需 ${req.core} 颗）`;
+        if (req.gems > 0 && state.gems < req.gems) return `宝石不足（需 ${req.gems} 颗）`;
+
+        const inventory = removeItem(state.inventory, 'core_1', req.core);
+        const pets = [...state.pets];
+        pets[idx] = { ...pet, stage: pet.stage + 1 };
+        const nextStage = PET_STAGES[pet.stage + 1];
+        set({ pets, inventory, gold: state.gold - req.gold, gems: state.gems - req.gems });
+        get().showToast(`🌈 灵宠进化为「${nextStage.prefix}${MONSTER_MAP[pet.monsterId].name}」！属性×${nextStage.mult}`);
+        get().checkAchievements();
+        return null;
+      },
+
+      fusePet: (mainUid, sacrificeUid) => {
+        const state = get();
+        if (mainUid === sacrificeUid) return '不能以自身为祭品';
+        const mainIdx = state.pets.findIndex(p => p.uid === mainUid);
+        const sac = state.pets.find(p => p.uid === sacrificeUid);
+        if (mainIdx < 0 || !sac) return '灵宠不存在';
+        const main = state.pets[mainIdx];
+        if (main.monsterId !== sac.monsterId) return '仅同种妖兽方可融合';
+        if (main.stars >= MAX_PET_STARS) return '已达五星上限';
+
+        let pets = state.pets.filter(p => p.uid !== sacrificeUid);
+        pets = pets.map(p => p.uid === mainUid ? { ...p, stars: p.stars + 1 } : p);
+        set({
+          pets,
+          activePetUid: state.activePetUid === sacrificeUid ? mainUid : state.activePetUid,
+        });
+        get().showToast(`✨ 融合成功！${petDisplayName(main)} 升至 ${main.stars + 1} 星`);
+        get().checkAchievements();
+        return null;
+      },
+
       releasePet: (uid) => {
         const state = get();
         const pet = state.pets.find(p => p.uid === uid);
@@ -578,6 +687,157 @@ export const useGameStore = create<GameStore>()(
         get().showToast(`放生灵宠，获得 ${gold} 金币`);
       },
 
+      // ---------- 炼器 ----------
+      refineGear: (uid) => {
+        const state = get();
+        const eq = state.equips[uid];
+        if (!eq) return '装备不存在';
+        if (!isRefinable(eq)) return '已达炼器上限 +10';
+        const cost = refineCost(eq);
+        const oreHave = state.inventory.find(i => i.itemId === cost.oreId)?.quantity ?? 0;
+        if (oreHave < cost.oreQty) return `${refineOreName(eq)}不足（需 ${cost.oreQty} 块）`;
+        if (state.gold < cost.gold) return `金币不足（需 ${formatNum(cost.gold)}）`;
+
+        const rate = refineSuccessRate(eq);
+        const success = Math.random() < rate;
+        const inventory = removeItem(state.inventory, cost.oreId, cost.oreQty);
+        const gold = state.gold - cost.gold;
+        const equips = { ...state.equips };
+        if (success) {
+          const nextRefine = (eq.refine ?? 0) + 1;
+          equips[uid] = { ...eq, refine: nextRefine };
+          set({ inventory, gold, equips });
+          get().showToast(`🔨 炼器成功！${eq.name} 强化至 +${nextRefine}`);
+        } else {
+          set({ inventory, gold, equips });
+          get().showToast('💥 炼器失败，材料已折损（装备无损）');
+        }
+        get().checkAchievements();
+        return null;
+      },
+
+      // ---------- 宗门 ----------
+      joinSect: (sectId) => {
+        const state = get();
+        if (state.sect) return;
+        const sect: PlayerSectState = {
+          sectId,
+          contribution: 0,
+          totalContrib: 0,
+          joinedAt: Date.now(),
+          dayKey: todayKey(),
+          dayContrib: 0,
+        };
+        const titleId = sectTitleId(sectId, 'outer');
+        const titles = (state.titles ?? []).includes(titleId)
+          ? state.titles
+          : [...(state.titles ?? []), titleId];
+        set({ sect, titles });
+        get().showToast(`🙏 拜入${SECT_MAP[sectId].name}，成为外门弟子！`);
+        get().checkAchievements();
+      },
+
+      leaveSect: () => {
+        const state = get();
+        if (!state.sect) return;
+        const titles = (state.titles ?? []).filter(t => !t.startsWith('sect_'));
+        set({
+          sect: null,
+          titles,
+          activeTitle: state.activeTitle?.startsWith('sect_') ? null : state.activeTitle,
+        });
+        get().showToast('已脱离宗门，贡献清零');
+      },
+
+      buySectItem: (itemId) => {
+        const state = get();
+        if (!state.sect) return '尚未拜入宗门';
+        const entry = getSectShopEntries().find(e => e.itemId === itemId);
+        if (!entry) return '商品不存在';
+        if (state.sect.contribution < entry.price) return '贡献点不足';
+        const sect = { ...state.sect, contribution: state.sect.contribution - entry.price };
+        set({ sect, inventory: addItem(state.inventory, entry.itemId, entry.qty ?? 1) });
+        get().showToast(`兑换 ${entry.label} 成功`);
+        return null;
+      },
+
+      // ---------- 转生 ----------
+      doRebirth: () => {
+        const state = get();
+        if (!canRebirth(state)) return;
+        const cSum = combatLevelSum(state.skills);
+        const gain = rebirthPointsGain(cSum);
+        const rebirth = {
+          count: (state.rebirth?.count ?? 0) + 1,
+          points: (state.rebirth?.points ?? 0) + gain,
+        };
+        const titles = [...(state.titles ?? [])];
+        for (const t of REBIRTH_TITLES) {
+          if (rebirth.count >= t.count && !titles.includes(t.id)) titles.push(t.id);
+        }
+        set({
+          skills: emptySkills(),
+          rebirth,
+          activeActivity: null,
+          activityProgress: 0,
+          activeBattleBuffAtk: 0,
+          buffExpireAt: 0,
+          titles,
+        });
+        get().showToast(`☸️ 转生功成！获得 ${gain} 点转生点（经验 +${gain}%，攻血 +${(gain * 0.5).toFixed(0)}%）`);
+        get().checkAchievements();
+      },
+
+      // ---------- 画册奖励与称号 ----------
+      claimAlbumReward: (id) => {
+        const state = get();
+        const rw = ALBUM_REWARDS.find(r => r.id === id);
+        if (!rw || !isAlbumRewardAvailable(rw, state)) return;
+        const albumClaims = [...(state.albumClaims ?? []), id];
+        let titles = [...(state.titles ?? [])];
+        let activeTitle = state.activeTitle ?? null;
+        if (rw.titleId && !titles.includes(rw.titleId)) {
+          titles.push(rw.titleId);
+          activeTitle = rw.titleId; // 自动佩戴最新限定称号
+        }
+        set({ albumClaims, titles, activeTitle, gems: state.gems + rw.gems });
+        get().showToast(`🖼️ 领取画册奖励【${rw.name}】 +${rw.gems}💎${rw.titleName ? ` · 获得称号「${rw.titleName}」` : ''}`);
+      },
+
+      cycleTitle: () => {
+        const state = get();
+        const owned = state.titles ?? [];
+        if (owned.length === 0) {
+          get().showToast('暂未获得限定称号');
+          return;
+        }
+        const cur = state.activeTitle;
+        const curIdx = cur ? owned.indexOf(cur) : -1;
+        const next = curIdx + 1 >= owned.length ? null : owned[curIdx + 1];
+        set({ activeTitle: next });
+        if (next) {
+          const name = getTitleDef(next, get())?.name;
+          get().showToast(`已佩戴称号「${name}」`);
+        } else {
+          get().showToast('已取下称号');
+        }
+      },
+
+      syncAutoTitles: () => {
+        const state = get();
+        const titles = [...(state.titles ?? [])];
+        let changed = false;
+        if (state.sect) {
+          const tid = currentSectTitleId(state);
+          if (tid && !titles.includes(tid)) { titles.push(tid); changed = true; }
+        }
+        const rc = state.rebirth?.count ?? 0;
+        for (const t of REBIRTH_TITLES) {
+          if (rc >= t.count && !titles.includes(t.id)) { titles.push(t.id); changed = true; }
+        }
+        if (changed) set({ titles });
+      },
+
       // ---------- 世界 BOSS ----------
       applyWorldBossResult: (r) => {
         if (!r.ok) return;
@@ -586,9 +846,11 @@ export const useGameStore = create<GameStore>()(
         let gems = state.gems;
         let inventory = state.inventory;
         const equips = { ...state.equips };
+        const xpMult = stateXpMult(state);
+        const goldMult = stateGoldMult(state);
 
         for (const id of ['hp', 'weaponry', 'power', 'defence', 'speed'] as SkillId[]) {
-          const res = grantSkillXp(skills, id, r.exp, skills.intellect.level);
+          const res = grantSkillXp(skills, id, r.exp, skills.intellect.level, xpMult);
           gems += res.gems;
         }
         if (r.legendaryDrop) {
@@ -596,15 +858,22 @@ export const useGameStore = create<GameStore>()(
           inventory = addItem(inventory, `equip:${r.legendaryDrop.uid}`, 1);
         }
 
+        // 宗门贡献：每次挑战 +5
+        let sect = state.sect;
+        if (sect) {
+          sect = grantContribution(sect, CONTRIB_PER_WB);
+        }
+
+        const gold = Math.round(r.gold * goldMult);
         const stats = {
           ...state.stats,
           wbKills: (state.stats.wbKills ?? 0) + (r.killed ? 1 : 0),
           wbBestDamage: Math.max(state.stats.wbBestDamage ?? 0, r.damage),
-          totalGoldEarned: state.stats.totalGoldEarned + r.gold,
+          totalGoldEarned: state.stats.totalGoldEarned + gold,
           totalExpEarned: state.stats.totalExpEarned + r.exp,
         };
 
-        set({ skills, gems, inventory, equips, stats, gold: state.gold + r.gold, worldBoss: r.worldBoss });
+        set({ skills, gems, inventory, equips, stats, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
         if (r.killed) {
           get().showToast(`🌌 世界 BOSS 已被击杀！下一只已降临`);
         }
@@ -630,15 +899,17 @@ export const useGameStore = create<GameStore>()(
         let gold = state.gold;
         let inventory = state.inventory;
         const equips = { ...state.equips };
+        const xpMult = stateXpMult(state);
+        const goldMult = stateGoldMult(state);
 
         // 技能经验
         for (const [skillId, xp] of Object.entries(report.skillXp)) {
-          const r = grantSkillXp(skills, skillId as SkillId, xp, skills.intellect.level);
+          const r = grantSkillXp(skills, skillId as SkillId, xp, skills.intellect.level, xpMult);
           gems += r.gems;
         }
 
         // 活动金币
-        gold += report.gold;
+        gold += Math.round(report.gold * goldMult);
 
         // 物品
         for (const it of report.items) {
@@ -656,14 +927,19 @@ export const useGameStore = create<GameStore>()(
         pendingOfflineEquips.length = 0;
 
         // 离线战斗
+        let sect = state.sect;
         if (report.battleKills > 0) {
-          gold += report.battleGold;
+          gold += Math.round(report.battleGold * goldMult);
           for (const id of ['hp', 'weaponry', 'power', 'defence', 'speed'] as SkillId[]) {
-            const r = grantSkillXp(skills, id, report.battleExp, skills.intellect.level);
+            const r = grantSkillXp(skills, id, report.battleExp, skills.intellect.level, xpMult);
             gems += r.gems;
           }
           for (const d of report.battleDrops) {
             inventory = addItem(inventory, d.itemId, d.qty);
+          }
+          // 离线击杀也计入宗门贡献（每 10 杀 +1）
+          if (sect) {
+            sect = grantContribution(sect, Math.floor(report.battleKills / 10));
           }
         }
 
@@ -681,7 +957,7 @@ export const useGameStore = create<GameStore>()(
 
         set({
           lastTick: now,
-          skills, gems, gold, inventory, equips, stats,
+          skills, gems, gold, inventory, equips, stats, sect,
           pendingOfflineReport: report,
         });
         get().checkAchievements();

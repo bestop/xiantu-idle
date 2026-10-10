@@ -148,3 +148,40 @@ export function runWorldBossAttempt(state: GameState, now = Date.now()): WorldBo
 
   return { ok: true, damage, rounds, killed, survived, overkill: killed ? -bossHp : 0, exp, gold, gems, legendaryDrop, worldBoss, log };
 }
+
+// ---------- 伤害排行榜（同服修士模拟） ----------
+
+const WB_RANK_NAMES: { name: string; icon: string }[] = [
+  { name: '剑仙李淳罡', icon: '🗡️' }, { name: '雷部行者', icon: '⚡' }, { name: '焚天谷主', icon: '🔥' },
+  { name: '沧澜圣女', icon: '🌊' }, { name: '石陀罗汉', icon: '🗿' }, { name: '幽冥判官', icon: '💀' },
+  { name: '太阴星主', icon: '🌙' }, { name: '御兽天王', icon: '🐉' }, { name: '阵道宗师', icon: '🔯' },
+  { name: '丹鼎真君', icon: '⚗️' }, { name: '醉剑仙', icon: '🍶' }, { name: '万法散人', icon: '📜' },
+];
+
+export interface WbRankEntry {
+  name: string;
+  icon: string;
+  damage: number;
+  isPlayer: boolean;
+}
+
+// 本期伤害榜：NPC 伤害随 BOSS 血量、修行时长成长；玩家按实际累计伤害入榜
+export function getWbDamageRanking(state: GameState): { entries: WbRankEntry[]; playerRank: number } {
+  const wb = state.worldBoss;
+  const idx = wb.bossIdx % WORLD_BOSSES.length;
+  const maxHp = wbMaxHp(idx);
+  const hours = Math.max(0, (Date.now() - state.stats.playStart) / 3600000);
+
+  const npcs: WbRankEntry[] = WB_RANK_NAMES.map((n, i) => {
+    // 榜首约占 BOSS 血量 14%，随游玩时长增长；越靠后占比越低
+    const share = Math.max(0.004, (0.14 - i * 0.012) * (1 + Math.min(2, hours * 0.02)));
+    const wobble = 1 + ((idx * 7 + i * 13) % 9) * 0.03; // 每 BOSS 期轻微浮动
+    return { name: n.name, icon: n.icon, damage: Math.round(maxHp * share * wobble), isPlayer: false };
+  });
+  const player: WbRankEntry = {
+    name: state.playerName || '你', icon: '🧙', damage: Math.round(wb.seasonDamage), isPlayer: true,
+  };
+  const entries = [...npcs, player].sort((a, b) => b.damage - a.damage);
+  const playerRank = entries.findIndex(e => e.isPlayer) + 1;
+  return { entries, playerRank };
+}
