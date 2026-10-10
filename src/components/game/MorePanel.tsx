@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useGameStore } from '@/store/game';
 import { getShopEntries } from '@/lib/game/engine';
 import { getItem, QUALITY_TEXT } from '@/lib/game/items';
+import { FORGE_RECIPES, forgeCostCheck, ForgeRecipe } from '@/lib/game/forge';
 import { ACHIEVEMENTS, achievementValue } from '@/lib/game/achievements';
 import { REGIONS, getMonstersByRegion, TOTAL_MONSTERS } from '@/lib/game/monsters';
 import {
@@ -18,13 +19,14 @@ import { SectPanel } from './SectPanel';
 import { RebirthPanel } from './RebirthPanel';
 import { Section, ActionButton, formatNum } from './ui-bits';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal, Images, Landmark, RefreshCcw, Gift } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Store, Trophy, BookOpen, Settings, AlertTriangle, PawPrint, Skull, Medal, Images, Landmark, RefreshCcw, Gift, Hammer } from 'lucide-react';
 
 export function MorePanel() {
   const view = useGameStore(s => s.moreView);
   const setView = useGameStore(s => s.setMoreView);
 
   if (view === 'shop') return <ShopView onBack={() => setView('root')} />;
+  if (view === 'forge') return <ForgeView onBack={() => setView('root')} />;
   if (view === 'achievements') return <AchievementsView onBack={() => setView('root')} />;
   if (view === 'codex') return <CodexView onBack={() => setView('root')} />;
   if (view === 'album') return <AlbumView onBack={() => setView('root')} />;
@@ -41,6 +43,7 @@ export function MorePanel() {
     { id: 'worldboss', icon: <Skull className="w-5 h-5" />, title: '世界 BOSS', desc: '血量持久的巨兽，伤害累积冲榜', tone: 'text-rose-300 bg-rose-950/60 border-rose-900/50' },
     { id: 'leaderboard', icon: <Medal className="w-5 h-5" />, title: '天梯榜', desc: '综合实力排名，与万千修士争锋', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
     { id: 'rebirth', icon: <RefreshCcw className="w-5 h-5" />, title: '轮回转生', desc: '渡劫之后轮回重修，换取永久加成', tone: 'text-violet-300 bg-violet-950/60 border-violet-900/50' },
+    { id: 'forge', icon: <Hammer className="w-5 h-5" />, title: '炼宝坊', desc: '妖王异宝熔铸专属神装', tone: 'text-orange-300 bg-orange-950/60 border-orange-900/50' },
     { id: 'shop', icon: <Store className="w-5 h-5" />, title: '仙市', desc: '购买丹药、材料与装备宝袋', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
     { id: 'achievements', icon: <Trophy className="w-5 h-5" />, title: '成就', desc: '永久成就与宝石奖励', tone: 'text-amber-300 bg-amber-950/60 border-amber-900/50' },
     { id: 'codex', icon: <BookOpen className="w-5 h-5" />, title: '妖兽图鉴', desc: '收集怪物卡片，点亮图鉴', tone: 'text-stone-300 bg-stone-800/80 border-stone-700/50' },
@@ -67,6 +70,90 @@ export function MorePanel() {
       <div className="text-center text-[10px] text-stone-600 pt-2">
         仙途 · 文字放置修仙 · 灵感来自 Harpagia
       </div>
+    </div>
+  );
+}
+
+// ===== 炼宝坊 =====
+function ForgeView({ onBack }: { onBack: () => void }) {
+  const inventory = useGameStore(s => s.inventory);
+  const gold = useGameStore(s => s.gold);
+  const craftForge = useGameStore(s => s.craftForge);
+  const [err, setErr] = useState<string | null>(null);
+
+  const craft = (recipe: ForgeRecipe) => {
+    setErr(craftForge(recipe.id));
+  };
+
+  return (
+    <div className="p-3 pb-24 space-y-3">
+      <SubHeader title="炼宝坊" onBack={onBack} />
+
+      <div className="text-[11px] text-stone-400 leading-relaxed bg-stone-900/80 border border-stone-800 rounded-xl p-3">
+        妖王陨落时遗留的异宝凡火难熔，唯有炼宝坊的地火能将其熔铸成器。核心异宝来自对应妖王掉落，辅以珍材灵金，即可炼成<b className="text-orange-300">专属神装</b>。
+      </div>
+
+      {err && (
+        <div className="text-[11px] text-rose-300 bg-rose-950/40 border border-rose-900/60 rounded-lg px-3 py-2">{err}</div>
+      )}
+
+      <div className="space-y-2.5">
+        {FORGE_RECIPES.map(recipe => {
+          const check = forgeCostCheck(recipe, inventory, gold);
+          const needs = [
+            { itemId: recipe.materialId, qty: recipe.coreQty },
+            ...recipe.extraMats,
+          ];
+          return (
+            <div key={recipe.id} className={cn('bg-stone-900/80 border rounded-xl p-3.5 space-y-2.5',
+              recipe.quality === 'mythic' ? 'border-rose-900/60' : 'border-amber-900/50')}>
+              <div className="flex items-start gap-3">
+                <div className={cn('w-12 h-12 rounded-lg border flex items-center justify-center text-2xl shrink-0',
+                  recipe.quality === 'mythic' ? 'bg-rose-950/60 border-rose-800/60' : 'bg-amber-950/50 border-amber-800/50')}>
+                  {recipe.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={cn('text-sm font-bold', QUALITY_TEXT[recipe.quality])}>{recipe.name}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-stone-800 border border-stone-700 text-stone-400">{recipe.tier}阶·{recipe.quality === 'mythic' ? '神品' : '仙品'}</span>
+                  </div>
+                  <div className="text-[10px] text-stone-500 mt-0.5">来源：{recipe.bossName}</div>
+                  <div className="text-[10px] text-stone-400 mt-1 leading-relaxed">{recipe.desc}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {needs.map(m => {
+                  const have = inventory.find(i => i.itemId === m.itemId)?.quantity ?? 0;
+                  const enough = have >= m.qty;
+                  const it = getItem(m.itemId);
+                  return (
+                    <span key={m.itemId}
+                      className={cn('text-[10px] px-2 py-1 rounded-md border tabular-nums',
+                        enough ? 'text-emerald-300 border-emerald-900/60 bg-emerald-950/30' : 'text-rose-300 border-rose-900/60 bg-rose-950/30')}>
+                      {it?.icon}{it?.name} {have}/{m.qty}
+                    </span>
+                  );
+                })}
+                <span className={cn('text-[10px] px-2 py-1 rounded-md border tabular-nums',
+                  gold >= recipe.gold ? 'text-amber-300 border-amber-900/60 bg-amber-950/30' : 'text-rose-300 border-rose-900/60 bg-rose-950/30')}>
+                  🪙 金币 {formatNum(gold)}/{formatNum(recipe.gold)}
+                </span>
+              </div>
+
+              <ActionButton
+                className="w-full"
+                disabled={!check.ok}
+                onClick={() => craft(recipe)}
+              >
+                {check.ok ? `⚒️ 熔铸「${recipe.name}」` : '材料不足，集齐后再来'}
+              </ActionButton>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="text-[10px] text-stone-600 text-center">专属装备词条随机生成，亦可继续炼器强化</div>
     </div>
   );
 }
@@ -382,8 +469,9 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <p>· <b className="text-stone-300">随机装备</b>：主属性与副词条完全随机，品质决定强度，气运影响掉落。</p>
           <p>· <b className="text-stone-300">灵宠</b>：战胜妖兽小概率收服，出战提供属性加成并随战斗成长；可进化（凡→灵→仙→神）与融合升星。</p>
           <p>· <b className="text-stone-300">炼器</b>：背包中炼化装备，主属性 +12%/级，失败不损装备，上限 +10。</p>
+          <p>· <b className="text-stone-300">炼宝坊</b>：妖王专属异宝熔铸专属神装，十大妖王各有首杀限定称号。</p>
           <p>· <b className="text-stone-300">宗门</b>：拜入四大宗门获得专属异能，战斗积累贡献，兑换珍宝、晋升位阶。</p>
-          <p>· <b className="text-stone-300">世界 BOSS</b>：血量跨挑战持久的巨兽，按伤害结算奖励并列入本期伤害榜，击杀得仙品装备。</p>
+          <p>· <b className="text-stone-300">世界 BOSS</b>：血量跨挑战持久的巨兽，按伤害结算奖励并列入本期伤害榜，击杀得仙品装备与专属异宝。</p>
           <p>· <b className="text-stone-300">天梯榜</b>：综合实力排名，与万千修士争锋。</p>
           <p>· <b className="text-stone-300">山河画册</b>：集齐明信片可领取宝石与限定称号，主页可佩戴称号。</p>
           <p>· <b className="text-stone-300">轮回转生</b>：渡劫后可转生，重置技能换取永久加成，资产全部保留。</p>

@@ -37,6 +37,7 @@ import {
 } from '@/lib/game/rebirth';
 import { ALBUM_REWARDS, isAlbumRewardAvailable } from '@/lib/game/scenes';
 import { getTitleDef, currentSectTitleId, normalizeTitles, WB_KILL_TITLES } from '@/lib/game/titles';
+import { FORGE_MAP, forgeCostCheck, forgeEquipment } from '@/lib/game/forge';
 import { formatNum } from '@/components/game/ui-bits';
 
 const emptySkills = (): Record<SkillId, { level: number; xp: number }> => {
@@ -134,6 +135,9 @@ export interface GameStore extends GameState {
 
   // 炼器
   refineGear: (uid: string) => string | null;
+
+  // 炼宝坊
+  craftForge: (recipeId: string) => string | null;
 
   // 宗门
   joinSect: (sectId: SectId) => void;
@@ -731,6 +735,29 @@ export const useGameStore = create<GameStore>()(
           set({ inventory, gold, equips });
           get().showToast('💥 炼器失败，材料已折损（装备无损）');
         }
+        get().checkAchievements();
+        return null;
+      },
+
+      // ---------- 炼宝坊 ----------
+      craftForge: (recipeId) => {
+        const state = get();
+        const recipe = FORGE_MAP[recipeId];
+        if (!recipe) return '配方不存在';
+        const check = forgeCostCheck(recipe, state.inventory, state.gold);
+        if (!check.ok) return `材料不足：${check.missing.join('、')}`;
+
+        let inventory = removeItem(state.inventory, recipe.materialId, recipe.coreQty);
+        for (const m of recipe.extraMats) {
+          inventory = removeItem(inventory, m.itemId, m.qty);
+        }
+        const gold = state.gold - recipe.gold;
+        const eq = forgeEquipment(recipe);
+        const equips = { ...state.equips, [eq.uid]: eq };
+        inventory = addItem(inventory, `equip:${eq.uid}`, 1);
+
+        set({ inventory, gold, equips });
+        get().showToast(`⚒️ 专属装备「${recipe.name}」炼成！`);
         get().checkAchievements();
         return null;
       },

@@ -6,7 +6,8 @@ import { useGameStore } from '@/store/game';
 import { computePlayerStats } from '@/lib/game/engine';
 import { WORLD_BOSSES, wbMaxHp, runWorldBossAttempt, WB_CHALLENGE_COOLDOWN_MS, WorldBossAttemptResult, getWbDamageRanking } from '@/lib/game/worldboss';
 import { QUALITY_TEXT, getItem } from '@/lib/game/items';
-import { BOSS_SCENE } from '@/lib/game/scenes';
+import { bossScene } from '@/lib/game/scenes';
+import { WB_KILL_TITLES } from '@/lib/game/titles';
 import { Section, ProgressBar, ActionButton, formatNum, QualityBadge } from './ui-bits';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, Swords } from 'lucide-react';
@@ -18,6 +19,9 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
   const maxHp = wbMaxHp(wb.bossIdx);
   const [result, setResult] = useState<WorldBossAttemptResult | null>(null);
   const ranking = getWbDamageRanking(store);
+  const scene = bossScene(boss.name);
+  const slain: string[] = store.stats.wbSlain ?? [];
+  const slainTitles = WORLD_BOSSES.filter(b => slain.includes(b.name) && WB_KILL_TITLES[b.name]).length;
 
   const cooldownLeft = Math.max(0, wb.lastChallengeAt + WB_CHALLENGE_COOLDOWN_MS - Date.now());
   const cooldownSec = Math.ceil(cooldownLeft / 1000);
@@ -40,10 +44,13 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
 
       {/* BOSS 卡 */}
       <div className="bg-gradient-to-br from-rose-950/60 via-stone-900 to-stone-900 border border-rose-900/60 rounded-xl overflow-hidden relative">
-        {/* 场景横幅（旅行青蛙式） */}
+        {/* 场景横幅（旅行青蛙式，按妖王切换） */}
         <div className="relative h-28">
-          <img src={BOSS_SCENE.img} alt="世界 BOSS" className="w-full h-full object-cover" />
+          <img src={scene.img} alt={scene.name} className="w-full h-full object-cover" />
           <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/30 to-transparent" />
+          {scene.refId && (
+            <div className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded-full bg-stone-950/70 border border-amber-800/60 text-amber-200/90">专属画境</div>
+          )}
         </div>
         <div className="p-4 pt-1 relative">
         <div aria-hidden className="absolute -top-8 -left-8 w-36 h-36 rounded-full bg-rose-600/10 blur-2xl pointer-events-none" />
@@ -65,13 +72,24 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
           <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-900/70 text-rose-300 border border-rose-800/60 shrink-0">{boss.tier}阶·世界级</span>
         </div>
 
+        {(() => {
+          const tDef = WB_KILL_TITLES[boss.name];
+          const owned = tDef && slain.includes(boss.name);
+          return (
+            <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-violet-200/90 bg-violet-950/30 border border-violet-900/50 rounded-lg px-2.5 py-1.5">
+              <span aria-hidden>🏆</span>
+              <span>首杀限定称号：<b className="text-violet-300">{tDef ? `「${tDef.name}」` : '待揭晞'}</b>{owned && ' · 已授'}</span>
+            </div>
+          );
+        })()}
+
         {boss.drop && (() => {
           const it = getItem(boss.drop.itemId);
           if (!it) return null;
           return (
             <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-amber-200/90 bg-amber-950/30 border border-amber-900/50 rounded-lg px-2.5 py-1.5">
               <span aria-hidden>{it.icon}</span>
-              <span>击杀专属掉落：<b className="text-amber-300">{it.name}</b> · 首杀授限定称号</span>
+              <span>击杀必得异宝<b className="text-amber-300">「{it.name}」</b>· 可入炼宝坊熔铸</span>
             </div>
           );
         })()}
@@ -186,6 +204,31 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
           })()}
         </div>
         <div className="text-[10px] text-stone-600 mt-2 text-center">本期对当前世界 BOSS 的累计伤害排名，轮换后重新计榜</div>
+      </Section>
+
+      {/* 妖王称号图鉴 */}
+      <Section title="妖王称号图鉴" extra={<span className={cn('text-[10px] tabular-nums', slainTitles >= WORLD_BOSSES.length ? 'text-amber-300' : 'text-stone-500')}>{slainTitles} / {WORLD_BOSSES.length}</span>}>
+        <div className="text-[10px] text-stone-500 mb-2">首次击杀对应妖王即授予限定称号，集齐十枚者可号令天下（并不能）。</div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {WORLD_BOSSES.map(b => {
+            const tDef = WB_KILL_TITLES[b.name];
+            const owned = !!tDef && slain.includes(b.name);
+            return (
+              <div key={b.name}
+                className={cn('rounded-lg border px-2 py-1.5 flex items-center gap-2',
+                  owned ? 'bg-violet-950/40 border-violet-800/60' : 'bg-stone-900/60 border-stone-800 opacity-70')}>
+                <span className="shrink-0 text-base" aria-hidden>{b.icon}</span>
+                <div className="min-w-0">
+                  <div className="text-[9px] text-stone-500 truncate">{b.name}</div>
+                  <div className={cn('text-[11px] font-semibold truncate', owned ? 'text-violet-300' : 'text-stone-600')}>
+                    {owned ? `「${tDef?.name}」` : '？？？'}
+                  </div>
+                </div>
+                {owned && <span className="ml-auto shrink-0 text-[9px] text-violet-400">✓</span>}
+              </div>
+            );
+          })}
+        </div>
       </Section>
 
       {/* 轮换表 */}

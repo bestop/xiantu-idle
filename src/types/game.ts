@@ -295,7 +295,7 @@ export interface RebirthState {
 export type MoreViewId =
   | 'root' | 'shop' | 'achievements' | 'codex'
   | 'pets' | 'worldboss' | 'leaderboard'
-  | 'sect' | 'rebirth' | 'album'
+  | 'sect' | 'rebirth' | 'album' | 'forge'
   | 'settings';
 
 // ---------- 成就 ----------

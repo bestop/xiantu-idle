@@ -13,9 +13,17 @@ export interface TitleDef {
   desc: string;
 }
 
-// 世界 BOSS 击杀限定称号：按 BOSS 名映射，首次击杀自动授予
+// 世界 BOSS 击杀限定称号：按 BOSS 名映射，首次击杀自动授予（十大妖王各一枚）
 export const WB_KILL_TITLES: Record<string, TitleDef> = {
+  '噬山血蟒': { id: 'title_tunshan', name: '吞山客', desc: '首次击杀世界 BOSS「噬山血蟒」' },
+  '九幽冥皇': { id: 'title_zhenyou', name: '镇幽使', desc: '首次击杀世界 BOSS「九幽冥皇」' },
+  '焚世炎帝': { id: 'title_daohuo', name: '蹈火真君', desc: '首次击杀世界 BOSS「焚世炎帝」' },
+  '沧溟海皇': { id: 'title_yuhai', name: '驭海龙尊', desc: '首次击杀世界 BOSS「沧溟海皇」' },
+  '万古石帝': { id: 'title_hanyue', name: '撼岳神君', desc: '首次击杀世界 BOSS「万古石帝」' },
+  '紫雷天君': { id: 'title_yulei', name: '御雷天将', desc: '首次击杀世界 BOSS「紫雷天君」' },
   '归墟鲸祖': { id: 'title_cangyuan', name: '沧渊猎神', desc: '首次击杀世界 BOSS「归墟鲸祖」' },
+  '太阴幽后': { id: 'title_lanyue', name: '揽月者', desc: '首次击杀世界 BOSS「太阴幽后」' },
+  '混沌魔神': { id: 'title_podun', name: '破沌者', desc: '首次击杀世界 BOSS「混沌魔神」' },
   '葬天仙帝': { id: 'title_shixian', name: '弑仙者', desc: '首次击杀世界 BOSS「葬天仙帝」' },
 };
 

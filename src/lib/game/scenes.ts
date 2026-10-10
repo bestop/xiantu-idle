@@ -116,6 +116,14 @@ export const SCENES: SceneDef[] = [
     id: 'worldboss', kind: 'boss', name: '世界 BOSS', img: '/scenes/worldboss.jpg',
     caption: '它很大，我很小，但剑没有退。',
   },
+  {
+    id: 'wb-guiqu', kind: 'boss', refId: '归墟鲸祖', name: '归墟鲸祖', img: '/scenes/wb-whale.png',
+    caption: '它驮着归墟游了万年，我的小灯不聒不响。',
+  },
+  {
+    id: 'wb-zangtian', kind: 'boss', refId: '葬天仙帝', name: '葬天仙帝', img: '/scenes/wb-emperor.png',
+    caption: '帝影垂目看我，我抬头看他——谁先眨眼，谁就输了。',
+  },
 ];
 
 export const SCENE_MAP: Record<string, SceneDef> = Object.fromEntries(
@@ -133,6 +141,15 @@ export const ACTIVITY_SCENE: Record<string, SceneDef> = Object.fromEntries(
 
 export const HOME_SCENE = SCENE_MAP['home'];
 export const BOSS_SCENE = SCENE_MAP['worldboss'];
+
+// 世界 BOSS 专属场景：按 BOSS 名索引（未收录的沿用通用场景）
+export const WB_SCENES_BY_BOSS: Record<string, SceneDef> = Object.fromEntries(
+  SCENES.filter(s => s.kind === 'boss' && s.refId).map(s => [s.refId!, s])
+);
+
+export function bossScene(bossName: string): SceneDef {
+  return WB_SCENES_BY_BOSS[bossName] ?? BOSS_SCENE;
+}
 
 // ---------- 解锁逻辑（无新增存档字段，全部由现有状态推导） ----------
 
