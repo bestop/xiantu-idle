@@ -241,6 +241,7 @@ export interface Statistics {
   petsCaptured: number;
   wbKills: number;       // 世界 BOSS 击杀数
   wbBestDamage: number;  // 单次挑战最高伤害
+  wbSlain?: string[];    // 已首次击杀过的世界 BOSS 名（限定称号依据）
 }
 
 // ---------- 宠物 ----------

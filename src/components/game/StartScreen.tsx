@@ -28,8 +28,8 @@ export function StartScreen() {
           <div className="w-24 h-24 mx-auto mb-4 rounded-full border border-amber-600/40 bg-gradient-to-br from-stone-900 via-stone-900 to-amber-950/70 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.18),inset_0_1px_0_0_rgba(255,255,255,0.06)] animate-float">
             <span className="text-5xl" aria-hidden>⛰️</span>
           </div>
-          <h1 className="font-xianzi text-4xl tracking-[0.35em] pl-[0.35em] text-gold-grad drop-shadow-[0_2px_12px_rgba(245,158,11,0.25)]">
-            仙途挂机
+          <h1 className="font-xianzi text-4xl tracking-[0.5em] pl-[0.5em] text-gold-grad drop-shadow-[0_2px_12px_rgba(245,158,11,0.25)]">
+            仙途
           </h1>
           <p className="text-[11px] text-stone-500 mt-3 tracking-[0.2em]">
             文字放置修仙 · 闭关亦有所得

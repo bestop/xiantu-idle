@@ -65,7 +65,7 @@ export function MorePanel() {
         </button>
       ))}
       <div className="text-center text-[10px] text-stone-600 pt-2">
-        仙途挂机 · 文字放置修仙 · 灵感来自 Harpagia
+        仙途 · 文字放置修仙 · 灵感来自 Harpagia
       </div>
     </div>
   );
@@ -376,7 +376,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
 
       <Section title="游戏说明">
         <div className="text-[11px] text-stone-400 space-y-1.5 leading-relaxed">
-          <p>《仙途挂机》是一款 Harpagia 式文字放置修仙 RPG。</p>
+          <p>《仙途》是一款 Harpagia 式文字放置修仙 RPG。</p>
           <p>· <b className="text-stone-300">16 项技能</b>：5 项战斗技能随战斗成长，11 项生活技能通过活动修炼，上限 200 级。</p>
           <p>· <b className="text-stone-300">真实离线进度</b>：关闭页面后角色继续修炼、战斗、采集（受定力技能影响），回来领取收益。</p>
           <p>· <b className="text-stone-300">随机装备</b>：主属性与副词条完全随机，品质决定强度，气运影响掉落。</p>

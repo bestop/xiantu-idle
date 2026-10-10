@@ -83,6 +83,12 @@ export const BASE_ITEMS: BaseItem[] = [
   { id: 'bone_1', name: '妖骨', type: 'material', icon: '🦴', description: '坚硬的妖兽骸骨。', quality: 'common', sellPrice: 25, tier: 2 },
   { id: 'core_1', name: '妖丹', type: 'material', icon: '🔮', description: '妖兽体内凝结的内丹，炼丹妙药。', quality: 'rare', sellPrice: 120, tier: 3 },
 
+  // ===== 妖王 / 世界 BOSS 专属掉落 =====
+  { id: 'r9_abyss_scale', name: '渊主逆鳞', type: 'material', icon: '🐉', description: '归墟之主逆生的玄黑鳞片，刀剑不侵，可售天价奇珍。', quality: 'epic', sellPrice: 6000, tier: 9 },
+  { id: 'r10_immortal_shard', name: '仙骸残片', type: 'material', icon: '⚱️', description: '仙帝残影消散后落下的碎屑，贴耳可闻大道之音。', quality: 'legendary', sellPrice: 15000, tier: 10 },
+  { id: 'wb_whale_pearl', name: '沧海鲛珠', type: 'material', icon: '💠', description: '归墟鲸祖丹田内孕育万年的定海神珠，宝光可照彻幽海。', quality: 'legendary', sellPrice: 12000, tier: 9 },
+  { id: 'wb_emperor_jade', name: '仙帝残玉', type: 'material', icon: '🟡', description: '葬天仙帝崩解后遗留的帝玉，触之仍有浩瀚仙威压体。', quality: 'mythic', sellPrice: 36000, tier: 10 },
+
   // ===== 丹药 =====
   { id: 'pill_heal_s', name: '回气散', type: 'pill', icon: '💚', description: '恢复少量气血。', quality: 'common', sellPrice: 30, tier: 1, pillEffect: 'heal', pillValue: 80 },
   { id: 'pill_heal_m', name: '回春散', type: 'pill', icon: '💚', description: '恢复中量气血。', quality: 'fine', sellPrice: 150, tier: 4, pillEffect: 'heal', pillValue: 400 },

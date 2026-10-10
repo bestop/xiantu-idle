@@ -32,7 +32,7 @@ function Splash() {
         <div className="w-20 h-20 mx-auto mb-4 rounded-full border border-amber-700/40 bg-gradient-to-br from-stone-900 to-amber-950/60 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.15)] animate-float">
           <span className="text-4xl" aria-hidden>⛰️</span>
         </div>
-        <div className="font-xianzi text-base text-gold-grad tracking-[0.4em] pl-[0.4em]">仙途挂机</div>
+        <div className="font-xianzi text-base text-gold-grad tracking-[0.6em] pl-[0.6em]">仙途</div>
       </div>
     </div>
   );

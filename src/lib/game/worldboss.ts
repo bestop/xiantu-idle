@@ -3,7 +3,7 @@
 // ============================================
 
 import { GameState, WorldBossState, Equipment } from '@/types/game';
-import { generateEquipment } from './items';
+import { generateEquipment, getItem } from './items';
 import { computePlayerStats } from './engine';
 
 export interface WorldBossDef {
@@ -11,18 +11,22 @@ export interface WorldBossDef {
   icon: string;
   tier: number;
   title: string; // 称号描述
+  region?: string; // 出没区域（对应世界地图）
+  drop?: { itemId: string; qty: number }; // 击杀专属掉落
 }
 
-// 8 大世界 BOSS，按顺序轮换（击杀或 24h 自动轮换）
+// 10 大世界 BOSS，与 10 大区域相呼应，按顺序轮换（击杀或 24h 自动轮换）
 export const WORLD_BOSSES: WorldBossDef[] = [
-  { name: '噬山血蟒', icon: '🐍', tier: 60, title: '盘踞落霞山脉的太古凶蟒，吞灵噬髓' },
-  { name: '九幽冥皇', icon: '💀', tier: 75, title: '幽冥沼泽深处的不死冥主，号令亡魂' },
-  { name: '焚世炎帝', icon: '🔥', tier: 90, title: '烈焰谷地火之意志的化身，焚天煮海' },
-  { name: '沧溟海皇', icon: '🌊', tier: 105, title: '四海归一的亘古龙皇，翻掌为渊' },
-  { name: '万古石帝', icon: '🗿', tier: 120, title: '九天秘境最古老的地灵，不朽不灭' },
-  { name: '紫雷天君', icon: '⚡', tier: 140, title: '执掌九天雷罚的无上存在，雷泽万里' },
+  { name: '噬山血蟒', icon: '🐍', tier: 60, title: '盘踞落霞山脉的太古凶蟒，吞灵噬髓', region: '落霞山脉' },
+  { name: '九幽冥皇', icon: '💀', tier: 75, title: '幽冥沼泽深处的不死冥主，号令亡魂', region: '幽冥沼泽' },
+  { name: '焚世炎帝', icon: '🔥', tier: 90, title: '烈焰谷地火之意志的化身，焚天煮海', region: '烈焰谷' },
+  { name: '沧溟海皇', icon: '🌊', tier: 105, title: '四海归一的亘古龙皇，翻掌为渊', region: '归墟海' },
+  { name: '万古石帝', icon: '🗿', tier: 120, title: '九天秘境最古老的地灵，不朽不灭', region: '九天秘境' },
+  { name: '紫雷天君', icon: '⚡', tier: 140, title: '执掌九天雷罚的无上存在，雷泽万里', region: '雷罚之地' },
+  { name: '归墟鲸祖', icon: '🐋', tier: 150, title: '沉眠归墟海眼的太古鲸祖，一息吞尽沧海', region: '归墟海', drop: { itemId: 'wb_whale_pearl', qty: 1 } },
   { name: '太阴幽后', icon: '🌙', tier: 160, title: '太阴星魂所化的冷月之主，霜寒九州' },
   { name: '混沌魔神', icon: '🌀', tier: 185, title: '开天辟地遗留的混沌残念，吞噬万象' },
+  { name: '葬天仙帝', icon: '⚱️', tier: 210, title: '仙墟深处葬下的不朽帝影，万年执念化煞', region: '仙墟', drop: { itemId: 'wb_emperor_jade', qty: 1 } },
 ];
 
 // 世界 BOSS 属性（血量巨大，跨多次挑战累积削减）
@@ -69,7 +73,9 @@ export interface WorldBossAttemptResult {
   exp: number;           // 五项战斗技能各得
   gold: number;
   gems: number;
-  legendaryDrop: Equipment | null; // 击杀奖励
+  legendaryDrop: Equipment | null; // 击杀奖励（仙品装备）
+  killDrop: { itemId: string; qty: number } | null; // 击杀专属材料
+  killedBossName: string | null;   // 被击杀的 BOSS 名（用于称号授予）
   // 更新后的世界 BOSS 状态
   worldBoss: WorldBossState;
   // 日志
@@ -80,10 +86,10 @@ export interface WorldBossAttemptResult {
 export function runWorldBossAttempt(state: GameState, now = Date.now()): WorldBossAttemptResult {
   const wb = state.worldBoss;
   if (wb.killed) {
-    return { ok: false, reason: 'dead', damage: 0, rounds: 0, killed: false, survived: false, overkill: 0, exp: 0, gold: 0, gems: 0, legendaryDrop: null, worldBoss: wb, log: [] };
+    return { ok: false, reason: 'dead', damage: 0, rounds: 0, killed: false, survived: false, overkill: 0, exp: 0, gold: 0, gems: 0, legendaryDrop: null, killDrop: null, killedBossName: null, worldBoss: wb, log: [] };
   }
   if (now - wb.lastChallengeAt < WB_CHALLENGE_COOLDOWN_MS) {
-    return { ok: false, reason: 'cooldown', damage: 0, rounds: 0, killed: false, survived: false, overkill: 0, exp: 0, gold: 0, gems: 0, legendaryDrop: null, worldBoss: wb, log: [] };
+    return { ok: false, reason: 'cooldown', damage: 0, rounds: 0, killed: false, survived: false, overkill: 0, exp: 0, gold: 0, gems: 0, legendaryDrop: null, killDrop: null, killedBossName: null, worldBoss: wb, log: [] };
   }
 
   const idx = wb.bossIdx % WORLD_BOSSES.length;
@@ -130,10 +136,18 @@ export function runWorldBossAttempt(state: GameState, now = Date.now()): WorldBo
 
   let gems = Math.random() < 0.08 ? 1 : 0;
   let legendaryDrop: Equipment | null = null;
+  let killDrop: WorldBossAttemptResult['killDrop'] = null;
+  let killedBossName: string | null = null;
   if (killed) {
     gems += 10 + Math.floor(boss.tier / 20);
     legendaryDrop = generateEquipment(boss.tier, 'legendary');
+    killDrop = boss.drop ? { ...boss.drop } : null;
+    killedBossName = boss.name;
     log.push(`🌌 ${boss.name} 轰然崩碎，天地灵气疯狂涌入你的识海！`);
+    if (killDrop) {
+      const it = getItem(killDrop.itemId);
+      log.push(`${it?.icon ?? '🎁'} 掉落了专属异宝「${it?.name ?? killDrop.itemId}」！`);
+    }
   }
 
   // 更新 BOSS 状态
@@ -146,7 +160,7 @@ export function runWorldBossAttempt(state: GameState, now = Date.now()): WorldBo
     worldBoss = { ...wb, hp: Math.max(0, bossHp), lastChallengeAt: now, seasonDamage: wb.seasonDamage + damage };
   }
 
-  return { ok: true, damage, rounds, killed, survived, overkill: killed ? -bossHp : 0, exp, gold, gems, legendaryDrop, worldBoss, log };
+  return { ok: true, damage, rounds, killed, survived, overkill: killed ? -bossHp : 0, exp, gold, gems, legendaryDrop, killDrop, killedBossName, worldBoss, log };
 }
 
 // ---------- 伤害排行榜（同服修士模拟） ----------

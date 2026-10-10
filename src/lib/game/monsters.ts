@@ -114,6 +114,16 @@ const REGION_DROPS: Record<string, { itemId: string; rate: number; qty?: number 
   ],
 };
 
+// 妖王专属掉落（仅对应妖王掉落，不随小怪掉出；未被命中则无额外收获）
+export const BOSS_ONLY_DROPS: Record<string, { itemId: string; rate: number; qty?: number }[]> = {
+  r9_boss: [
+    { itemId: 'r9_abyss_scale', rate: 0.5 },
+  ],
+  r10_boss: [
+    { itemId: 'r10_immortal_shard', rate: 0.5 },
+  ],
+};
+
 // 怪物属性公式
 function monsterStats(tier: number, isBoss: boolean) {
   const hp = Math.round(30 * Math.pow(tier, 1.55) * (isBoss ? 4.5 : 1));

@@ -13,11 +13,18 @@ export interface TitleDef {
   desc: string;
 }
 
-// 固定称号（画册 / 转生）
+// 世界 BOSS 击杀限定称号：按 BOSS 名映射，首次击杀自动授予
+export const WB_KILL_TITLES: Record<string, TitleDef> = {
+  '归墟鲸祖': { id: 'title_cangyuan', name: '沧渊猎神', desc: '首次击杀世界 BOSS「归墟鲸祖」' },
+  '葬天仙帝': { id: 'title_shixian', name: '弑仙者', desc: '首次击杀世界 BOSS「葬天仙帝」' },
+};
+
+// 固定称号（画册 / 转生 / 世界 BOSS 击杀）
 export const FIXED_TITLES: TitleDef[] = [
   { id: 'title_shanhe', name: '山河行者', desc: '集齐画册「行走山河」全部明信片' },
   { id: 'title_baiyi', name: '百艺修士', desc: '集齐画册「修行手记」全部明信片' },
   { id: 'title_huasheng', name: '画圣·山河印心', desc: '集齐整本山河画册（限定）' },
+  ...Object.values(WB_KILL_TITLES),
   ...REBIRTH_TITLES.map(t => ({ id: t.id, name: t.name, desc: `转生 ${t.count} 次达成` })),
 ];
 

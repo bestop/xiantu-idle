@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useGameStore } from '@/store/game';
 import { computePlayerStats } from '@/lib/game/engine';
 import { WORLD_BOSSES, wbMaxHp, runWorldBossAttempt, WB_CHALLENGE_COOLDOWN_MS, WorldBossAttemptResult, getWbDamageRanking } from '@/lib/game/worldboss';
-import { QUALITY_TEXT } from '@/lib/game/items';
+import { QUALITY_TEXT, getItem } from '@/lib/game/items';
 import { BOSS_SCENE } from '@/lib/game/scenes';
 import { Section, ProgressBar, ActionButton, formatNum, QualityBadge } from './ui-bits';
 import { cn } from '@/lib/utils';
@@ -55,10 +55,26 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
             <div>
               <div className="text-lg font-bold text-rose-200">{boss.name}</div>
               <div className="text-[10px] text-stone-400 mt-0.5">{boss.title}</div>
+              {boss.region && (
+                <div className="mt-1 inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded bg-stone-900/80 border border-stone-700 text-amber-200/90">
+                  🗺️ 出没·{boss.region}
+                </div>
+              )}
             </div>
           </div>
           <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-900/70 text-rose-300 border border-rose-800/60 shrink-0">{boss.tier}阶·世界级</span>
         </div>
+
+        {boss.drop && (() => {
+          const it = getItem(boss.drop.itemId);
+          if (!it) return null;
+          return (
+            <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-amber-200/90 bg-amber-950/30 border border-amber-900/50 rounded-lg px-2.5 py-1.5">
+              <span aria-hidden>{it.icon}</span>
+              <span>击杀专属掉落：<b className="text-amber-300">{it.name}</b> · 首杀授限定称号</span>
+            </div>
+          );
+        })()}
 
         <div className="mt-3 relative">
           <ProgressBar value={wb.hp} max={maxHp} className="h-4" barClass="bg-gradient-to-r from-rose-700 to-rose-500" showText />
@@ -125,6 +141,12 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
             <div className="flex justify-between text-stone-300"><span>战斗经验（五项技能各得）</span><span className="text-amber-300 tabular-nums">+{formatNum(result.exp)}</span></div>
             <div className="flex justify-between text-stone-300"><span>金币</span><span className="text-amber-300 tabular-nums">+{formatNum(result.gold)}</span></div>
             {result.gems > 0 && <div className="text-cyan-300">💎 获得 {result.gems} 颗宝石</div>}
+            {result.killDrop && (() => {
+              const it = getItem(result.killDrop.itemId);
+              return (
+                <div className="text-amber-300">{it?.icon ?? '🎁'} 击杀专属掉落：{it?.name ?? result.killDrop.itemId} ×{result.killDrop.qty}</div>
+              );
+            })()}
             {result.legendaryDrop && (
               <div className="text-stone-400">
                 击杀奖励：<span className={QUALITY_TEXT[result.legendaryDrop.quality]}>
@@ -175,7 +197,7 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
                 i === wb.bossIdx % WORLD_BOSSES.length ? 'bg-rose-950/50 border-rose-800' : 'bg-stone-900/60 border-stone-800 opacity-60')}>
               <div className="text-lg" aria-hidden>{b.icon}</div>
               <div className="text-[9px] text-stone-400 truncate">{b.name}</div>
-              <div className="text-[9px] text-stone-600">{b.tier}阶</div>
+              <div className="text-[9px] text-stone-600 truncate" title={b.region}>{b.tier}阶{b.region ? `·${b.region}` : ''}</div>
             </div>
           ))}
         </div>

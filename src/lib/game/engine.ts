@@ -8,7 +8,7 @@ import {
 } from '@/types/game';
 import { xpMultiplier, dropMultiplier, critBonus, equipDropBonus, gatherTier, xpToNext, offlineEfficiency, offlineCapSeconds, ACTIVITY_MAP } from './skills';
 import { generateEquipment, rollQuality, getItem, genUid } from './items';
-import { MONSTER_MAP, getRecommendedMonster, getMonstersByRegion } from './monsters';
+import { MONSTER_MAP, getRecommendedMonster, getMonstersByRegion, BOSS_ONLY_DROPS } from './monsters';
 import { petBonus } from './pets';
 import { refineMainMult, refineAffixMult } from './refine';
 import { sectLevelBonus, getSectMembers } from './sects';
@@ -188,6 +188,16 @@ export function rollDrops(monster: MonsterDef, state: GameState, luckStat: numbe
     if (Math.random() < d.rate * luckMult) {
       const qty = d.qty ?? 1;
       items.push({ itemId: d.itemId, qty });
+    }
+  }
+
+  // 妖王专属掉落（仅特定妖王；同样受气运微弱加成）
+  const bossOnly = BOSS_ONLY_DROPS[monster.id];
+  if (bossOnly) {
+    for (const d of bossOnly) {
+      if (Math.random() < d.rate * Math.min(2, luckMult)) {
+        items.push({ itemId: d.itemId, qty: d.qty ?? 1 });
+      }
     }
   }
 

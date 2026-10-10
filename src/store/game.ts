@@ -36,7 +36,7 @@ import {
   initialRebirth, normalizeRebirth, canRebirth, rebirthPointsGain, REBIRTH_TITLES,
 } from '@/lib/game/rebirth';
 import { ALBUM_REWARDS, isAlbumRewardAvailable } from '@/lib/game/scenes';
-import { getTitleDef, currentSectTitleId, normalizeTitles } from '@/lib/game/titles';
+import { getTitleDef, currentSectTitleId, normalizeTitles, WB_KILL_TITLES } from '@/lib/game/titles';
 import { formatNum } from '@/components/game/ui-bits';
 
 const emptySkills = (): Record<SkillId, { level: number; xp: number }> => {
@@ -853,6 +853,11 @@ export const useGameStore = create<GameStore>()(
         for (const t of REBIRTH_TITLES) {
           if (rc >= t.count && !titles.includes(t.id)) { titles.push(t.id); changed = true; }
         }
+        // 世界 BOSS 首杀称号回填（兼容旧存档 / 异常路径遗漏）
+        for (const bossName of state.stats.wbSlain ?? []) {
+          const t = WB_KILL_TITLES[bossName];
+          if (t && !titles.includes(t.id)) { titles.push(t.id); changed = true; }
+        }
         if (changed) set({ titles });
       },
 
@@ -875,6 +880,9 @@ export const useGameStore = create<GameStore>()(
           equips[r.legendaryDrop.uid] = r.legendaryDrop;
           inventory = addItem(inventory, `equip:${r.legendaryDrop.uid}`, 1);
         }
+        if (r.killDrop) {
+          inventory = addItem(inventory, r.killDrop.itemId, r.killDrop.qty);
+        }
 
         // 宗门贡献：每次挑战 +5
         let sect = state.sect;
@@ -883,17 +891,41 @@ export const useGameStore = create<GameStore>()(
         }
 
         const gold = Math.round(r.gold * goldMult);
-        const stats = {
-          ...state.stats,
-          wbKills: (state.stats.wbKills ?? 0) + (r.killed ? 1 : 0),
-          wbBestDamage: Math.max(state.stats.wbBestDamage ?? 0, r.damage),
-          totalGoldEarned: state.stats.totalGoldEarned + gold,
-          totalExpEarned: state.stats.totalExpEarned + r.exp,
-        };
 
-        set({ skills, gems, inventory, equips, stats, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
+        // 首杀记录 + 限定称号授予
+        let titles = [...(state.titles ?? [])];
+        let newTitleName: string | null = null;
+        if (r.killed && r.killedBossName) {
+          const slain = [...new Set([...(state.stats.wbSlain ?? []), r.killedBossName])];
+          const stats0 = { ...state.stats, wbSlain: slain };
+          const tDef = WB_KILL_TITLES[r.killedBossName];
+          if (tDef && !titles.includes(tDef.id)) {
+            titles.push(tDef.id);
+            newTitleName = tDef.name;
+          }
+          const stats = {
+            ...stats0,
+            wbKills: (state.stats.wbKills ?? 0) + 1,
+            wbBestDamage: Math.max(state.stats.wbBestDamage ?? 0, r.damage),
+            totalGoldEarned: state.stats.totalGoldEarned + gold,
+            totalExpEarned: state.stats.totalExpEarned + r.exp,
+          };
+          set({ skills, gems, inventory, equips, stats, titles, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
+        } else {
+          const stats = {
+            ...state.stats,
+            wbBestDamage: Math.max(state.stats.wbBestDamage ?? 0, r.damage),
+            totalGoldEarned: state.stats.totalGoldEarned + gold,
+            totalExpEarned: state.stats.totalExpEarned + r.exp,
+          };
+          set({ skills, gems, inventory, equips, stats, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
+        }
+
         if (r.killed) {
           get().showToast(`🌌 世界 BOSS 已被击杀！下一只已降临`);
+        }
+        if (newTitleName) {
+          get().showToast(`🏆 获得限定称号「${newTitleName}」，可在主页佩戴`);
         }
         get().checkAchievements();
       },
