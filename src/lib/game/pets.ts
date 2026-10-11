@@ -2,7 +2,7 @@
 // 灵宠系统：捕获 / 成长 / 出战加成
 // ============================================
 
-import { PetInstance, MonsterDef } from '@/types/game';
+import { PetInstance } from '@/types/game';
 import { MONSTER_MAP } from './monsters';
 import { xpToNext } from './skills';
 import { genUid } from './items';
@@ -41,12 +41,6 @@ export function canEvolve(pet: PetInstance): boolean {
 
 // 融合：吞噬同族妖兽，星级 +1，每星 +6% 全属性
 export const STAR_BONUS_PER = 0.06;
-
-// 捕获概率：战胜后有概率将妖兽收为灵宠（气运与气运技能提升概率；妖王更难）
-export function captureChance(luckStat: number, monster: MonsterDef): number {
-  const base = monster.isBoss ? 0.01 : 0.035;
-  return Math.min(0.3, base + luckStat * 0.0006);
-}
 
 export function makePet(monsterId: string): PetInstance {
   return { uid: genUid(), monsterId, level: 1, xp: 0, capturedAt: Date.now(), stage: 0, stars: 0 };

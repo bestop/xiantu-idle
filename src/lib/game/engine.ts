@@ -340,12 +340,14 @@ export function computeOfflineReport(state: GameState, now: number): OfflineRepo
   if (state.autoBattleEnabled && state.initialized) {
     const pStats = computePlayerStats(state);
     const avgLv = avgCombatLevel(state);
-    // 找到胜率 > 70% 的最高档怪物
+    // 从低到高找到能稳定击败（3 局模拟胜 ≥ 2）的最高档怪物，不再虚报全胜
     const region = state.lastRegionId || 'r1';
     const candidates = getMonstersByRegion(region).filter(m => !m.isBoss);
     let target: MonsterDef | null = null;
     for (const m of candidates) {
-      if (pStats.maxHp / Math.max(1, m.atk * 0.4) > 8) target = m; // 粗略生存判定
+      let wins = 0;
+      for (let i = 0; i < 3; i++) if (playerWins(pStats, m)) wins++;
+      if (wins >= 2) target = m; // 区域表按 tier 升序，持续覆盖取最高档
     }
     const monster = target ?? getRecommendedMonster(avgLv);
     if (monster) {
@@ -386,6 +388,7 @@ export function computeOfflineReport(state: GameState, now: number): OfflineRepo
 
   return {
     seconds: rawSeconds,
+    settledSeconds: seconds, // 实际结算时长（受离线上限与效率影响）
     effiency: eff,
     skillXp,
     gold,

@@ -124,6 +124,7 @@ export function formatDuration(seconds: number): string {
 }
 
 export function formatNum(n: number): string {
+  if (n >= 1e12) return `${(n / 1e12).toFixed(2)}兆`;
   if (n >= 1e8) return `${(n / 1e8).toFixed(2)}亿`;
   if (n >= 1e4) return `${(n / 1e4).toFixed(1)}万`;
   return n.toLocaleString('zh-CN', { maximumFractionDigits: 0 });

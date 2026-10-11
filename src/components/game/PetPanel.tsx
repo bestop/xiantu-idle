@@ -210,7 +210,7 @@ function FuseSelector({ mainUid, onCancel, onDone }: {
           选择一只<b className="text-amber-300">同种</b>妖兽作为祭品，主宠 {petDisplayName(main)} 将升为
           <b className="text-amber-300"> {main.stars + 1} 星</b>（全属性 +{Math.round(STAR_BONUS_PER * 100)}%）。祭品灵宠将消失，其等级不计入主宠。
         </div>
-        <div className="space-y-1.5 max-h-72 overflow-y-auto">
+        <div className="space-y-1.5 max-h-72 overflow-y-auto overscroll-contain">
           {candidates.map(p => {
             const lv = p.level;
             return (

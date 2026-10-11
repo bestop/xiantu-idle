@@ -322,6 +322,7 @@ export interface AchievementState {
 
 export interface OfflineReport {
   seconds: number;
+  settledSeconds?: number; // 实际结算时长（受离线上限影响），旧档报告可能缺失
   effiency: number; // 0-1
   skillXp: Record<string, number>;
   gold: number;

@@ -73,7 +73,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // ===== 世界 BOSS =====
   { id: 'wb_1', name: '世界之敌', icon: '🐍', description: '首次击杀世界 BOSS', metric: 'wbKills', target: 1, gemReward: 15 },
   { id: 'wb_4', name: '诸神黄昏', icon: '💀', description: '累计击杀 4 只世界 BOSS', metric: 'wbKills', target: 4, gemReward: 40 },
-  { id: 'wb_all', name: '弑神者', icon: '🌀', description: '击杀全部 8 只世界 BOSS', metric: 'wbKills', target: 8, gemReward: 150 },
+  { id: 'wb_all', name: '弑神者', icon: '🌀', description: '集齐 10 大妖王的首杀', metric: 'wbUnique', target: 10, gemReward: 150 },
   { id: 'wb_dmg_10k', name: '伤害之王', icon: '💯', description: '单次挑战世界 BOSS 造成 1 万伤害', metric: 'wbBestDamage', target: 10000, gemReward: 30 },
 
   // ===== 修行 =====
@@ -105,6 +105,7 @@ export function achievementValue(metric: string, state: GameState): number {
     case 'sectContrib': return state.sect?.totalContrib ?? 0;
     case 'rebirths': return state.rebirth?.count ?? 0;
     case 'wbKills': return state.stats.wbKills ?? 0;
+    case 'wbUnique': return (state.stats.wbSlain ?? []).length;
     case 'wbBestDamage': return state.stats.wbBestDamage ?? 0;
     case 'anySkill10': return Math.max(...Object.values(state.skills).map(s => s.level)) >= 10 ? 1 : 0;
     case 'anySkill25': return Math.max(...Object.values(state.skills).map(s => s.level)) >= 25 ? 1 : 0;

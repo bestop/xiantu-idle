@@ -47,7 +47,8 @@ export function CombatPanel() {
   const [battle, setBattle] = useState<BattleState | null>(null);
   const battleRef = useRef<BattleState | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const logEndRef = useRef<HTMLDivElement | null>(null);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logBoxRef = useRef<HTMLDivElement | null>(null);
   const statsRef = useRef<PlayerStats>(playerStats);
   statsRef.current = playerStats;
 
@@ -63,6 +64,7 @@ export function CombatPanel() {
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
   }, []);
 
   // 结算战斗
@@ -82,10 +84,12 @@ export function CombatPanel() {
     }
     sync();
 
-    // 自动战斗：胜利后 1.6s 开下一场
+    // 自动战斗：胜利后 1.6s 开下一场（timeout 纳入 clearTimer 管理，避免逃离/卸载后僵尸复活）
     if (useGameStore.getState().autoBattleEnabled && won) {
-      setTimeout(() => {
-        if (useGameStore.getState().autoBattleEnabled && battleRef.current?.phase !== 'fighting') {
+      autoTimerRef.current = setTimeout(() => {
+        autoTimerRef.current = null;
+        // 逃离战斗后 battleRef 为 null，此时不得自动开新战斗
+        if (useGameStore.getState().autoBattleEnabled && battleRef.current && battleRef.current.phase !== 'fighting') {
           startBattleRef.current?.(MONSTER_MAP[b.monsterId]);
         }
       }, 1600);
@@ -192,9 +196,10 @@ export function CombatPanel() {
   // 卸载清理
   useEffect(() => clearTimer, [clearTimer]);
 
-  // 战斗日志自动滚动
+  // 战斗日志自动滚动（仅在日志容器内滚动，不拖动整页）
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const box = logBoxRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
   }, [battle?.log.length]);
 
   // 战斗内喝药
@@ -206,6 +211,8 @@ export function CombatPanel() {
   const drinkPill = (itemId: string) => {
     const item = getItem(itemId);
     if (!item || item.pillEffect !== 'heal' || !battleRef.current) return;
+    // 满血保护：避免误触白白消耗丹药
+    if (battleRef.current.playerHp >= battleRef.current.player.maxHp) return;
     if (!useGameStore.getState().consumeItem(itemId, 1)) return;
     const mult = pillMultiplier(useGameStore.getState().skills.imbibing.level);
     const heal = Math.round((item.pillValue ?? 0) * mult);
@@ -269,7 +276,7 @@ export function CombatPanel() {
 
         {/* 战斗日志 */}
         <Section className="!p-0 overflow-hidden">
-          <div className="max-h-56 overflow-y-auto p-3 space-y-1 scroll-smooth" aria-live="polite">
+          <div ref={logBoxRef} className="max-h-56 overflow-y-auto overscroll-contain p-3 space-y-1 scroll-smooth" aria-live="polite">
             {battle.log.slice(-14).map(l => (
               <div key={l.id} className={cn('text-xs leading-relaxed animate-in fade-in slide-in-from-left-1 duration-200',
                 l.type === 'player' && 'text-stone-300',
@@ -281,7 +288,6 @@ export function CombatPanel() {
                 l.type === 'lose' && 'text-red-400 font-bold',
               )}>{l.text}</div>
             ))}
-            <div ref={logEndRef} />
           </div>
         </Section>
 
@@ -290,9 +296,11 @@ export function CombatPanel() {
           <div className="flex gap-1.5 flex-wrap">
             {healPills.map(i => {
               const item = getItem(i.itemId)!;
+              const fullHp = battle.playerHp >= battle.player.maxHp;
               return (
-                <button key={i.itemId} onClick={() => drinkPill(i.itemId)}
-                  className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-800 rounded-lg px-2.5 py-2 text-xs text-emerald-200 min-h-[40px] active:scale-95">
+                <button key={i.itemId} onClick={() => drinkPill(i.itemId)} disabled={fullHp}
+                  className={cn('flex items-center gap-1 bg-emerald-950/80 border border-emerald-800 rounded-lg px-2.5 py-2 text-xs text-emerald-200 min-h-[40px] disabled:opacity-40',
+                    !fullHp && 'active:scale-95')}>
                   <Heart className="w-3.5 h-3.5" /> {item.name} ×{i.quantity}
                 </button>
               );

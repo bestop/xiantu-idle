@@ -63,6 +63,9 @@ function GameShell() {
   const tab = useGameStore(s => s.tab);
   useGameTick();
 
+  // 切换页签时回到顶部，避免长页面残留滚动位置
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [tab]);
+
   return (
     <div className="min-h-dvh bg-stone-950 relative">
       <div className="xiantu-bg" aria-hidden />

@@ -188,7 +188,7 @@ function ShopView({ onBack }: { onBack: () => void }) {
                   <div className={cn('text-xs font-semibold', QUALITY_TEXT[item.quality])}>{item.name}</div>
                   <div className="text-[10px] text-stone-500 truncate">{item.description}</div>
                 </div>
-                <ActionButton className="!min-h-[40px] !px-3 text-xs" onClick={() => {
+                <ActionButton className="!min-h-[40px] !px-3 text-xs" disabled={store.gold < e.price} onClick={() => {
                   const err = store.buyShopItem(e.itemId);
                   if (err) { setMsg(err); setTimeout(() => setMsg(null), 2000); }
                 }}>🪙 {formatNum(e.price)}</ActionButton>
@@ -213,7 +213,7 @@ function ShopView({ onBack }: { onBack: () => void }) {
                 <ActionButton className="!min-h-[40px] !px-3 text-xs" onClick={() => {
                   const err = store.buyShopItem(e.itemId);
                   if (err) { setMsg(err); setTimeout(() => setMsg(null), 2000); }
-                }}>💎 {e.price}</ActionButton>
+                }} disabled={store.gems < e.price}>💎 {e.price}</ActionButton>
               </div>
             );
           })}
@@ -223,7 +223,7 @@ function ShopView({ onBack }: { onBack: () => void }) {
               <div className="text-xs font-semibold text-purple-300">稀有装备宝袋</div>
               <div className="text-[10px] text-stone-500">开出一件 {avgLv} 阶上品及以上随机装备</div>
             </div>
-            <ActionButton className="!min-h-[40px] !px-3 text-xs" onClick={() => {
+            <ActionButton className="!min-h-[40px] !px-3 text-xs" disabled={store.gems < 20} onClick={() => {
               const eq = store.buyEquipBag('rare');
               if (eq) { setMsg(`获得【${eq.name}】！`); setTimeout(() => setMsg(null), 2500); }
             }}>💎 20</ActionButton>
@@ -234,7 +234,7 @@ function ShopView({ onBack }: { onBack: () => void }) {
               <div className="text-xs font-semibold text-amber-300">仙品装备宝袋</div>
               <div className="text-[10px] text-stone-500">开出一件 {avgLv} 阶仙品随机装备</div>
             </div>
-            <ActionButton className="!min-h-[40px] !px-3 text-xs" onClick={() => {
+            <ActionButton className="!min-h-[40px] !px-3 text-xs" disabled={store.gems < 60} onClick={() => {
               const eq = store.buyEquipBag('legendary');
               if (eq) { setMsg(`获得【${eq.name}】！`); setTimeout(() => setMsg(null), 2500); }
             }}>💎 60</ActionButton>
@@ -430,7 +430,7 @@ function AlbumView({ onBack }: { onBack: () => void }) {
                   <div key={s.id}
                     className={cn('relative rounded-xl overflow-hidden border aspect-[4/3]',
                       has ? 'border-stone-700 bg-stone-900' : 'border-stone-800/60 bg-stone-950/60')}>
-                    <img src={s.img} alt={has ? s.name : '未解锁'}
+                    <img src={s.img} alt={has ? s.name : '未解锁'} loading="lazy" decoding="async"
                       className={cn('absolute inset-0 w-full h-full object-cover transition',
                         has ? '' : 'opacity-15 blur-[6px] grayscale scale-110')} />
                     {has && <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent" />}

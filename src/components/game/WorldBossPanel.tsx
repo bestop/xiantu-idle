@@ -145,7 +145,7 @@ export function WorldBossPanel({ onBack }: { onBack: () => void }) {
           result.killed ? 'bg-amber-950/40 border-amber-700' : 'bg-stone-900/80 border-stone-800')}>
           <div className={cn('text-sm font-bold text-center',
             result.killed ? 'text-amber-300' : result.survived ? 'text-emerald-300' : 'text-red-300')}>
-            {result.killed ? `🌌 击杀 ${boss.name}！` : result.survived ? `⚔️ 交手 ${result.rounds} 回合，共造成 ${formatNum(result.damage)} 伤害` : `💀 不敌 ${boss.name}，造成 ${formatNum(result.damage)} 伤害`}
+            {result.killed ? `🌌 击杀 ${result.killedBossName ?? boss.name}！` : result.survived ? `⚔️ 交手 ${result.rounds} 回合，共造成 ${formatNum(result.damage)} 伤害` : `💀 不敌 ${boss.name}，造成 ${formatNum(result.damage)} 伤害`}
           </div>
           <div className="max-h-40 overflow-y-auto space-y-0.5">
             {result.log.map((l, i) => (

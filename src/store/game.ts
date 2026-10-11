@@ -11,7 +11,7 @@ import {
   Equipment, OfflineReport, InvItem, AchievementState, MoreViewId,
   PlayerSectState, SectId, ActiveBuff, ActiveBuffKey,
 } from '@/types/game';
-import { ACTIVITY_MAP, xpToNext, gatherTier, combatLevelSum } from '@/lib/game/skills';
+import { ACTIVITY_MAP, xpToNext, gatherTier, combatLevelSum, pillMultiplier } from '@/lib/game/skills';
 import {
   computePlayerStats, grantSkillXp, computeOfflineReport, resolveDynamicItemId,
   activityRoundReward, pendingOfflineEquips, getShopEntries, openEquipBag,
@@ -202,6 +202,8 @@ export const useGameStore = create<GameStore>()(
           equips[uid] = { ...e, refine: (e as Equipment).refine ?? 0 };
         }
         const rebirth = normalizeRebirth(s.rebirth);
+        // 旧档兼容：技能表新增 id 时从初始值补齐，避免 skills.focus.level 等直接访问 undefined 崩溃
+        const skills = { ...emptySkills(), ...(s.skills ?? {}) };
         const tn = normalizeTitles(s);
         // 旧存档 buff 迁移：activeBattleBuffAtk/buffExpireAt → activeBuffs（并丢弃已过期）
         const now = Date.now();
@@ -212,7 +214,7 @@ export const useGameStore = create<GameStore>()(
           buffs = [...buffs, { key: 'atk', value: legacyAtk, expireAt: legacyExpire }];
         }
         set({
-          hydrated: true, stats, worldBoss, pets, equips, rebirth,
+          hydrated: true, stats, worldBoss, pets, equips, rebirth, skills,
           titles: tn.titles, activeTitle: tn.activeTitle,
           albumClaims: s.albumClaims ?? [],
           sect: s.sect ?? null,
@@ -253,8 +255,8 @@ export const useGameStore = create<GameStore>()(
         if (!state.initialized) { set({ lastTick: now }); return; }
 
         const deltaSec = Math.max(0, (now - state.lastTick) / 1000);
-        // 超过 90 秒的空窗交给 settleOffline（页面可见性恢复）处理
-        if (deltaSec > 90) { set({ lastTick: now }); return; }
+        // 超过 90 秒的空窗直接走离线结算（修复：此前仅重置 lastTick，导致恢复前台时挂机收益丢失）
+        if (deltaSec > 90) { get().settleOffline(); return; }
 
         // 过期丹药 buff 清理（轻量：仅在确有过期时写回）
         if ((state.activeBuffs ?? []).some(b => b.expireAt <= now)) {
@@ -335,6 +337,8 @@ export const useGameStore = create<GameStore>()(
             gems += r.gems;
             levelUps += r.levelsGained;
           }
+          // 战斗宝石掉落入账（修复：此前 rewards.gems 从未加进 gems，UI 却提示获得）
+          gems += rewards.gems;
         }
 
         // 出战灵宠获得经验
@@ -384,7 +388,8 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        const gold = state.gold + (won ? Math.round(rewards.gold * stateGoldMult(state)) : 0) + rewards.gems * 0;
+        const goldGain = won ? Math.round(rewards.gold * stateGoldMult(state)) : 0;
+        const gold = state.gold + goldGain;
 
         // 宗门贡献：胜利 +1，妖王 +10
         let sect = state.sect;
@@ -398,7 +403,7 @@ export const useGameStore = create<GameStore>()(
           totalWins: state.stats.totalWins + (won ? 1 : 0),
           totalKills: state.stats.totalKills + (won ? 1 : 0),
           bossKills: state.stats.bossKills + (won && monster.isBoss ? 1 : 0),
-          totalGoldEarned: state.stats.totalGoldEarned + (won ? rewards.gold : 0),
+          totalGoldEarned: state.stats.totalGoldEarned + goldGain, // 与实际入账同源（含金币加成乘区）
           totalExpEarned: state.stats.totalExpEarned + (won ? rewards.exp : 0),
           totalDrops: state.stats.totalDrops + drops,
           petsCaptured: (state.stats.petsCaptured ?? 0) + petsCaptured,
@@ -427,8 +432,9 @@ export const useGameStore = create<GameStore>()(
           let gems = state.gems;
           let levelUps = 0;
           const xpMult = stateXpMult(state);
+          const pillVal = Math.round((item.pillValue ?? 500) * pillMultiplier(state.skills.imbibing?.level ?? 0));
           for (const id of ['hp', 'weaponry', 'power', 'defence', 'speed'] as SkillId[]) {
-            const r = grantSkillXp(skills, id, item.pillValue ?? 500, skills.intellect.level, xpMult);
+            const r = grantSkillXp(skills, id, pillVal, skills.intellect.level, xpMult);
             gems += r.gems;
             levelUps += r.levelsGained;
           }
@@ -445,7 +451,8 @@ export const useGameStore = create<GameStore>()(
         };
         const bKey = buffKeyMap[item.pillEffect];
         if (!bKey) return '该物品无法使用';
-        const bValue = item.pillValue ?? 30;
+        // 灵酒加成对全部丹药生效（修复：此前仅战斗喝血吃到乘区）
+        const bValue = Math.max(1, Math.round((item.pillValue ?? 30) * pillMultiplier(state.skills.imbibing?.level ?? 0)));
         const now = Date.now();
         const others = (state.activeBuffs ?? []).filter(b => b.expireAt > now && b.key !== bKey);
         const activeBuffs: ActiveBuff[] = [...others, { key: bKey, value: bValue, expireAt: now + 10 * 60 * 1000 }];
@@ -949,7 +956,7 @@ export const useGameStore = create<GameStore>()(
             totalGoldEarned: state.stats.totalGoldEarned + gold,
             totalExpEarned: state.stats.totalExpEarned + r.exp,
           };
-          set({ skills, gems, inventory, equips, stats, titles, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
+          set({ skills, gems: gems + r.gems, inventory, equips, stats, titles, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
         } else {
           const stats = {
             ...state.stats,
@@ -957,7 +964,7 @@ export const useGameStore = create<GameStore>()(
             totalGoldEarned: state.stats.totalGoldEarned + gold,
             totalExpEarned: state.stats.totalExpEarned + r.exp,
           };
-          set({ skills, gems, inventory, equips, stats, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
+          set({ skills, gems: gems + r.gems, inventory, equips, stats, gold: state.gold + gold, worldBoss: r.worldBoss, sect });
         }
 
         if (r.killed) {
@@ -1037,13 +1044,16 @@ export const useGameStore = create<GameStore>()(
 
         gems += report.gems;
 
+        const offlineGold = Math.round(report.gold * goldMult) + Math.round(report.battleGold * goldMult); // 与实际入账同源
+        const offlineDrops = report.items.reduce((a, it) => a + it.qty, 0) + report.battleDrops.reduce((a, d) => a + d.qty, 0);
         const stats = {
           ...state.stats,
-          totalGoldEarned: state.stats.totalGoldEarned + report.gold + report.battleGold,
+          totalGoldEarned: state.stats.totalGoldEarned + offlineGold,
           totalExpEarned: state.stats.totalExpEarned + report.battleExp,
           totalKills: state.stats.totalKills + report.battleKills,
           totalWins: state.stats.totalWins + report.battleKills,
           totalBattles: state.stats.totalBattles + report.battleKills,
+          totalDrops: state.stats.totalDrops + offlineDrops, // 修复：离线掉落此前未计入统计
           offlineSessions: state.stats.offlineSessions + 1,
         };
 

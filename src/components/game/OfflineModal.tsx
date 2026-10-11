@@ -17,6 +17,8 @@ export function OfflineModal() {
   const lastRegionId = useGameStore(s => s.lastRegionId);
   if (!report) return null;
 
+  const settled = report.settledSeconds ?? report.seconds;
+  const capped = settled < report.seconds;
   const skillEntries = Object.entries(report.skillXp) as [SkillId, number][];
   const allItems = [
     ...report.items,
@@ -25,8 +27,8 @@ export function OfflineModal() {
   const scene = REGION_SCENE[lastRegionId] ?? HOME_SCENE;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="离线收益">
-      <div className="w-full max-w-md bg-gradient-to-b from-stone-900 to-stone-950 border-t border-amber-800/50 rounded-t-2xl p-4 pb-8 max-h-[85vh] overflow-y-auto thin-scrollbar animate-in slide-in-from-bottom duration-300">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="离线收益" onClick={dismiss}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-gradient-to-b from-stone-900 to-stone-950 border-t border-amber-800/50 rounded-t-2xl p-4 pb-8 max-h-[85vh] overflow-y-auto overscroll-contain thin-scrollbar animate-in slide-in-from-bottom duration-300">
         {/* 把手 */}
         <div aria-hidden className="w-10 h-1 rounded-full bg-stone-700 mx-auto mb-3" />
         <div className="text-center mb-4">
@@ -35,7 +37,8 @@ export function OfflineModal() {
           </div>
           <h2 className="font-xianzi text-xl font-bold text-gold-grad tracking-[0.3em] pl-[0.3em]">闭关归来</h2>
           <p className="text-[11px] text-stone-500 mt-1 tabular-nums">
-            离线 {formatDuration(report.seconds)} · 收益效率 {(report.effiency * 100).toFixed(0)}%
+            离线 {formatDuration(settled)} · 收益效率 {(report.effiency * 100).toFixed(0)}%
+            {capped ? '（超出部分已达挂机上限）' : ''}
           </p>
         </div>
 

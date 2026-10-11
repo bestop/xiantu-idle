@@ -382,6 +382,7 @@ function ItemDetail({ itemId, qty, onBack }: { itemId: string; qty: number; onBa
   const store = useGameStore();
   const item = getItem(itemId);
   const [msg, setMsg] = useState<string | null>(null);
+  const [confirmSellAll, setConfirmSellAll] = useState(false);
   if (!item) return null;
   const usable = item.type === 'pill';
 
@@ -412,8 +413,17 @@ function ItemDetail({ itemId, qty, onBack }: { itemId: string; qty: number; onBa
           卖 1 个
         </ActionButton>
         {qty > 1 && (
-          <ActionButton variant="ghost" className={usable ? 'col-span-2' : ''} onClick={() => { store.sellMaterial(itemId, qty); onBack(); }}>
-            全部售出 🪙{formatNum(item.sellPrice * qty)}
+          <ActionButton variant={confirmSellAll ? 'danger' : 'ghost'} className={usable ? 'col-span-2' : ''}
+            onClick={() => {
+              if (!confirmSellAll) {
+                setConfirmSellAll(true);
+                setTimeout(() => setConfirmSellAll(false), 3000);
+                return;
+              }
+              store.sellMaterial(itemId, qty);
+              onBack();
+            }}>
+            {confirmSellAll ? '再点一次确认清空！' : `全部售出 🪙${formatNum(item.sellPrice * qty)}`}
           </ActionButton>
         )}
       </div>
